@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "aero-client",
+  "version": "${version}",
+  "name": "Aero Client",
+  "description": "Aero Client - standalone Fabric client (Meteor bundled) with a compact ClickGUI and the full P3nis module set.",
+  "authors": ["Aero"],
+  "icon": "assets/aero/icon.png",
+  "environment": "client",
+  "entrypoints": { "meteor": ["com.aero.client.AeroClient"] },
+  "mixins": ["aero-client.mixins.json"],
+  "custom": {
+    "meteor-client:color": "111,211,255",
+    "modmenu": { "parent": { "id": "meteor-client" } }
+  },
+  "depends": {
+    "java": ">=21",
+    "minecraft": "~1.21.11",
+    "fabric-api": "*",
+    "meteor-client": ">=0.5.8"
+  }
+}
