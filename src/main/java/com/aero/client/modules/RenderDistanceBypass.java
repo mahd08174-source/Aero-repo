@@ -1,12 +1,12 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
+import com.aero.client.core.events.TickEvent;
+import com.aero.client.core.settings.IntSetting;
+import com.aero.client.core.settings.Setting;
+import com.aero.client.core.settings.SettingGroup;
+import com.aero.client.core.Module;
+import com.aero.client.core.events.EventHandler;
 
 public class RenderDistanceBypass
 extends Module {

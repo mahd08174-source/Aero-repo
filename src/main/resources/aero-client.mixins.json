@@ -5,7 +5,10 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "SpawnerRendererMixin",
-    "FreecamCameraMixin"
+    "FreecamCameraMixin",
+    "WorldRendererAccessor"
   ],
-  "injectors": { "defaultRequire": 1 }
+  "injectors": {
+    "defaultRequire": 1
+  }
 }
