@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.class_2487;
 import net.minecraft.class_310;
 
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,8 @@ public final class ModuleConfig {
 
     private ModuleConfig() {}
 
+    private static final String[] EXTRA_INT_KEYS = {"panelX", "panelY"};
+
     private static Path file() { return FabricLoader.getInstance().getConfigDir().resolve("aero-client.json"); }
 
     public static void markDirty() { dirty = true; }
@@ -38,6 +41,12 @@ public final class ModuleConfig {
                 if (m == null || !e.getValue().isJsonObject()) continue;
                 JsonObject o = e.getValue().getAsJsonObject();
                 if (o.has("active") && o.get("active").getAsBoolean()) PENDING_ACTIVE.add(m.name);
+                if (o.has("extra") && o.get("extra").isJsonObject()) {
+                    JsonObject ex = o.getAsJsonObject("extra");
+                    class_2487 tag = new class_2487();
+                    for (String k : EXTRA_INT_KEYS) if (ex.has(k)) tag.method_10569(k, ex.get(k).getAsInt());
+                    m.fromTag(tag);
+                }
                 if (!o.has("settings")) continue;
                 JsonObject s = o.getAsJsonObject("settings");
                 for (SettingGroup g : m.settings.getGroups()) {
@@ -63,6 +72,15 @@ public final class ModuleConfig {
                     for (Setting<?> setting : g.getAll()) s.addProperty(g.name + "/" + setting.name, setting.serialize());
                 }
                 o.add("settings", s);
+                class_2487 tag = m.toTag();
+                if (tag != null) {
+                    JsonObject ex = new JsonObject();
+                    for (String k : EXTRA_INT_KEYS) {
+                        final String key = k;
+                        tag.method_10550(key).ifPresent(v -> ex.addProperty(key, v));
+                    }
+                    o.add("extra", ex);
+                }
                 mods.add(m.name, o);
             }
             JsonObject root = new JsonObject();

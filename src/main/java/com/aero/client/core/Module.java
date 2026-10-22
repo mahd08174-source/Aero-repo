@@ -2,6 +2,7 @@ package com.aero.client.core;
 
 import com.aero.client.core.events.Events;
 import com.aero.client.core.settings.Settings;
+import net.minecraft.class_2487;
 import net.minecraft.class_2561;
 import net.minecraft.class_310;
 
@@ -31,6 +32,11 @@ public abstract class Module {
         }
         return sb.toString();
     }
+
+    /** Extra persisted state (integers only, see ModuleConfig). Modules may extend it. */
+    public class_2487 toTag() { return new class_2487(); }
+
+    public Module fromTag(class_2487 tag) { return this; }
 
     public void onActivate() {}
 
