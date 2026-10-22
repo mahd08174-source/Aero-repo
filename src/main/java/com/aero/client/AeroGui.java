@@ -1,8 +1,7 @@
 package com.aero.client;
 
-import meteordevelopment.meteorclient.gui.GuiThemes;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.systems.modules.Modules;
+import com.aero.client.core.Module;
+import com.aero.client.core.Modules;
 import net.minecraft.class_2561;
 import net.minecraft.class_310;
 import net.minecraft.class_332;
@@ -14,7 +13,7 @@ import java.util.List;
 
 /**
  * Aero ClickGUI: COMBAT / MISC / DONUT / RENDER panels.
- * Left click = toggle, right click = module settings (Meteor's settings screen), drag header = move,
+ * Left click = toggle, right click = module settings (Aero settings screen), drag header = move,
  * RIGHT SHIFT or ESC = close. Input is polled via GLFW (same approach as the ported HUD modules).
  */
 public class AeroGui extends class_437 {
@@ -53,8 +52,8 @@ public class AeroGui extends class_437 {
                 panels.add(p);
             }
             // any Aero module not listed above goes into MISC so nothing is unreachable
-            for (meteordevelopment.meteorclient.systems.modules.Category c :
-                new meteordevelopment.meteorclient.systems.modules.Category[]{AeroCategory.CATEGORY, AeroCategory.MISC_V2, AeroCategory.HUD_V1})
+            for (com.aero.client.core.Category c :
+                new com.aero.client.core.Category[]{AeroCategory.CATEGORY, AeroCategory.MISC_V2, AeroCategory.HUD_V1})
                 for (Module m : Modules.get().getGroup(c)) if (!placed.contains(m)) panels.get(1).mods.add(m);
         }
     }
@@ -95,7 +94,7 @@ public class AeroGui extends class_437 {
                     int idx = (int) ((my - p.y - HEAD - 3) / ROW);
                     if (idx >= 0 && idx < p.mods.size()) {
                         Module m = p.mods.get(idx);
-                        if (left) m.toggle(); else mc.method_1507(GuiThemes.get().moduleScreen(m));
+                        if (left) m.toggle(); else mc.method_1507(new AeroSettingsScreen(m));
                     }
                 }
                 break;

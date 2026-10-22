@@ -1,6 +1,6 @@
 package com.aero.client;
 
-import meteordevelopment.meteorclient.systems.modules.Category;
+import com.aero.client.core.Category;
 import net.minecraft.class_1802;
 
 /** Categories that hold the ported modules (the Aero GUI arranges them into its own panels). */

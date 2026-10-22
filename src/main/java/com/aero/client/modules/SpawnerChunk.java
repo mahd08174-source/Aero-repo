@@ -5,18 +5,18 @@ import java.awt.Color;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
+import com.aero.client.core.events.Render3DEvent;
+import com.aero.client.core.events.TickEvent;
+import com.aero.client.core.render.ShapeMode;
+import com.aero.client.core.settings.BoolSetting;
+import com.aero.client.core.settings.ColorSetting;
+import com.aero.client.core.settings.DoubleSetting;
+import com.aero.client.core.settings.IntSetting;
+import com.aero.client.core.settings.Setting;
+import com.aero.client.core.settings.SettingGroup;
+import com.aero.client.core.Module;
+import com.aero.client.core.render.SettingColor;
+import com.aero.client.core.events.EventHandler;
 import net.minecraft.class_1923;
 import net.minecraft.class_2338;
 import net.minecraft.class_243;
@@ -108,13 +108,13 @@ extends Module {
         for (class_2338 pos : this.foundSpawners) {
             class_1923 cp;
             if (((Boolean)this.renderSpawnerBoxes.get()).booleanValue()) {
-                event.renderer.box((double)pos.method_10263(), (double)pos.method_10264(), (double)pos.method_10260(), (double)(pos.method_10263() + 1), (double)(pos.method_10264() + 1), (double)(pos.method_10260() + 1), (meteordevelopment.meteorclient.utils.render.color.Color)new SettingColor(0, 0, 0, 0), (meteordevelopment.meteorclient.utils.render.color.Color)rainbow, ShapeMode.Lines, 0);
+                event.renderer.box((double)pos.method_10263(), (double)pos.method_10264(), (double)pos.method_10260(), (double)(pos.method_10263() + 1), (double)(pos.method_10264() + 1), (double)(pos.method_10260() + 1), (com.aero.client.core.render.Color)new SettingColor(0, 0, 0, 0), (com.aero.client.core.render.Color)rainbow, ShapeMode.Lines, 0);
             }
             if (((Boolean)this.showSpawnerTracers.get()).booleanValue()) {
-                event.renderer.line(cam.field_1352, cam.field_1351, cam.field_1350, (double)pos.method_10263() + 0.5, (double)pos.method_10264() + 0.5, (double)pos.method_10260() + 0.5, (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerTracerColor.get());
+                event.renderer.line(cam.field_1352, cam.field_1351, cam.field_1350, (double)pos.method_10263() + 0.5, (double)pos.method_10264() + 0.5, (double)pos.method_10260() + 0.5, (com.aero.client.core.render.Color)this.spawnerTracerColor.get());
             }
             if (!((Boolean)this.highlightSpawnerChunks.get()).booleanValue() || !renderedChunks.add(cp = new class_1923(pos))) continue;
-            event.renderer.box((double)(cp.field_9181 * 16), -64.0, (double)(cp.field_9180 * 16), (double)(cp.field_9181 * 16 + 16), 320.0, (double)(cp.field_9180 * 16 + 16), (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerChunkFillColor.get(), (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerChunkLineColor.get(), ShapeMode.Both, 0);
+            event.renderer.box((double)(cp.field_9181 * 16), -64.0, (double)(cp.field_9180 * 16), (double)(cp.field_9181 * 16 + 16), 320.0, (double)(cp.field_9180 * 16 + 16), (com.aero.client.core.render.Color)this.spawnerChunkFillColor.get(), (com.aero.client.core.render.Color)this.spawnerChunkLineColor.get(), ShapeMode.Both, 0);
         }
     }
 }

@@ -1,12 +1,12 @@
 package com.aero.client;
 
-import meteordevelopment.meteorclient.events.render.Render2DEvent;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.settings.StringSetting;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
+import com.aero.client.core.events.Render2DEvent;
+import com.aero.client.core.settings.IntSetting;
+import com.aero.client.core.settings.Setting;
+import com.aero.client.core.settings.SettingGroup;
+import com.aero.client.core.settings.StringSetting;
+import com.aero.client.core.Module;
+import com.aero.client.core.events.EventHandler;
 import net.minecraft.class_332;
 
 /**
