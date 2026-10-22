@@ -1,9 +1,9 @@
 # Aero Client
-Fabric 1.21.11 client. Meteor Client is bundled inside the jar (jar-in-jar), so it is a single file; it needs **Fabric API** next to it.
-Do NOT also install a separate Meteor jar (duplicate mod id).
+Standalone Fabric 1.21.11 client. It has **no Meteor Client dependency**: the module, settings, event and render layer lives in `com.aero.client.core`. It only needs **Fabric API**.
 
 - **Right Shift** opens/closes the Aero ClickGUI (COMBAT / MISC / DONUT / RENDER), light-blue theme, Xuong font.
-- Left click = toggle, right click = that module's settings, drag header = move panel.
+- Left click = toggle, right click = that module's settings screen, drag header = move panel.
+- Module on/off state and settings are saved to `config/aero-client.json`.
 - Includes the full P3nis module set (finders, ESPs, spawner tools, staff tools, auto relog/rtp, freecam, Spotify HUD, region map, ...).
 - Not included: FakePay, FakeScoreboard (balance/stat forger) and FakeSpawner. `aero-scoreboard` is a plain custom overlay instead.
 
