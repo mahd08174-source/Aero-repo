@@ -1,25 +1,24 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.player.FindItemResult;
-import meteordevelopment.meteorclient.utils.player.InvUtils;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1268;
-import net.minecraft.class_1297;
-import net.minecraft.class_1304;
-import net.minecraft.class_1657;
-import net.minecraft.class_1792;
-import net.minecraft.class_1802;
-import net.minecraft.class_2596;
-import net.minecraft.class_2848;
-
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.FindItemResult;
+import com.aero.client.api.InvUtils;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.Hand;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 public class AFKFly
 extends Module {
     private final SettingGroup sgGeneral;
@@ -48,55 +47,55 @@ extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         boolean tooLow;
-        if (this.mc.field_1724 == null || this.mc.field_1687 == null) {
+        if (this.mc.player == null || this.mc.world == null) {
             return;
         }
         if (this.fireworkCooldown > 0) {
             --this.fireworkCooldown;
         }
-        if (((Boolean)this.autoStart.get()).booleanValue() && !this.mc.field_1724.method_6128()) {
-            if (!this.mc.field_1724.method_24828() && this.hasElytraEquipped()) {
-                this.mc.field_1724.field_3944.method_52787((class_2596)new class_2848((class_1297)this.mc.field_1724, class_2848.class_2849.field_12982));
+        if (((Boolean)this.autoStart.get()).booleanValue() && !this.mc.player.isGliding()) {
+            if (!this.mc.player.isOnGround() && this.hasElytraEquipped()) {
+                this.mc.player.networkHandler.sendPacket((Packet)new ClientCommandC2SPacket((Entity)this.mc.player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
             }
             return;
         }
-        if (!this.mc.field_1724.method_6128()) {
+        if (!this.mc.player.isGliding()) {
             return;
         }
-        double hSpeed = Math.sqrt(this.mc.field_1724.method_18798().field_1352 * this.mc.field_1724.method_18798().field_1352 + this.mc.field_1724.method_18798().field_1350 * this.mc.field_1724.method_18798().field_1350);
+        double hSpeed = Math.sqrt(this.mc.player.getVelocity().x * this.mc.player.getVelocity().x + this.mc.player.getVelocity().z * this.mc.player.getVelocity().z);
         boolean tooSlow = hSpeed < (Double)this.minSpeed.get();
-        boolean bl = tooLow = this.mc.field_1724.method_23318() < (Double)this.minY.get();
+        boolean bl = tooLow = this.mc.player.getY() < (Double)this.minY.get();
         if ((tooSlow || tooLow) && this.fireworkCooldown <= 0) {
             this.useFirework();
         }
     }
 
     private void useFirework() {
-        if (this.mc.field_1724 == null || this.mc.field_1761 == null) {
+        if (this.mc.player == null || this.mc.interactionManager == null) {
             return;
         }
-        FindItemResult firework = InvUtils.findInHotbar((class_1792[])new class_1792[]{class_1802.field_8639});
+        FindItemResult firework = InvUtils.findInHotbar((Item[])new Item[]{Items.FIREWORK_ROCKET});
         if (!firework.found()) {
             return;
         }
         InvUtils.swap((int)firework.slot(), (boolean)false);
-        this.mc.field_1761.method_2919((class_1657)this.mc.field_1724, class_1268.field_5808);
+        this.mc.interactionManager.interactItem((PlayerEntity)this.mc.player, Hand.MAIN_HAND);
         InvUtils.swapBack();
         this.fireworkCooldown = (Integer)this.fireworkDelay.get();
     }
 
     private boolean hasElytraEquipped() {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return false;
         }
-        return this.mc.field_1724.method_6118(class_1304.field_6174).method_31574(class_1802.field_8833);
+        return this.mc.player.getEquippedStack(EquipmentSlot.CHEST).isOf(Items.ELYTRA);
     }
 
     public String getInfoString() {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return null;
         }
-        return this.mc.field_1724.method_6128() ? "Flying" : "Not flying";
+        return this.mc.player.isGliding() ? "Flying" : "Not flying";
     }
 }
 

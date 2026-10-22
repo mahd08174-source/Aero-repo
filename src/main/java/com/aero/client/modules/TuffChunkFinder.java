@@ -9,23 +9,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1923;
-import net.minecraft.class_2246;
-import net.minecraft.class_2462;
-import net.minecraft.class_2561;
-import net.minecraft.class_2586;
-import net.minecraft.class_2680;
-import net.minecraft.class_2769;
-import net.minecraft.class_2818;
-import net.minecraft.class_2826;
-import net.minecraft.class_4482;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.RepeaterBlock;
+import net.minecraft.text.Text;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Property;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.block.entity.BeehiveBlockEntity;
 public class TuffChunkFinder
 extends Module {
     private static final double RENDER_Y = 63.0;
@@ -33,7 +32,7 @@ extends Module {
     private static final long FULL_SCAN_INTERVAL = 20000L;
     private static final long QUICK_SCAN_INTERVAL = 200L;
     private static final long COOLDOWN_MS = 50000L;
-    private final ConcurrentHashMap<class_1923, String> foundChunks = new ConcurrentHashMap();
+    private final ConcurrentHashMap<ChunkPos, String> foundChunks = new ConcurrentHashMap();
     private final AtomicBoolean scanning = new AtomicBoolean(false);
     private ExecutorService executor;
     private long lastFullScanTime = 0L;
@@ -61,7 +60,7 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -76,45 +75,45 @@ extends Module {
     }
 
     private void quickRepeaterScan() {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
-        ArrayList<class_1923> positions = new ArrayList<class_1923>();
-        ArrayList<class_2818> chunks = new ArrayList<class_2818>();
+        ArrayList<ChunkPos> positions = new ArrayList<ChunkPos>();
+        ArrayList<WorldChunk> chunks = new ArrayList<WorldChunk>();
         this.collectChunks(positions, chunks);
         this.getOrCreateExecutor("tuff-quick-scan").submit(() -> {
             for (int i = 0; i < positions.size(); ++i) {
-                if (this.countPoweredRepeaters((class_2818)chunks.get(i)) < 3) continue;
+                if (this.countPoweredRepeaters((WorldChunk)chunks.get(i)) < 3) continue;
                 this.foundChunks.clear();
-                this.foundChunks.put((class_1923)positions.get(i), "repeater");
+                this.foundChunks.put((ChunkPos)positions.get(i), "repeater");
                 return;
             }
         });
     }
 
     private void fullScan() {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             this.scanning.set(false);
             return;
         }
-        ArrayList<class_1923> positions = new ArrayList<class_1923>();
-        ArrayList<class_2818> chunks = new ArrayList<class_2818>();
+        ArrayList<ChunkPos> positions = new ArrayList<ChunkPos>();
+        ArrayList<WorldChunk> chunks = new ArrayList<WorldChunk>();
         this.collectChunks(positions, chunks);
         this.getOrCreateExecutor("tuff-full-scan").submit(() -> {
             try {
                 int i;
                 for (i = 0; i < positions.size(); ++i) {
-                    if (this.countPoweredRepeaters((class_2818)chunks.get(i)) < 3) continue;
+                    if (this.countPoweredRepeaters((WorldChunk)chunks.get(i)) < 3) continue;
                     this.lastMarkTime = System.currentTimeMillis();
                     this.foundChunks.clear();
-                    this.foundChunks.put((class_1923)positions.get(i), "repeater");
+                    this.foundChunks.put((ChunkPos)positions.get(i), "repeater");
                     this.notifyFound("repeater");
                     return;
                 }
                 for (i = 0; i < positions.size(); ++i) {
                     String type;
                     boolean hasRepeater;
-                    class_2818 chunk = (class_2818)chunks.get(i);
+                    WorldChunk chunk = (WorldChunk)chunks.get(i);
                     boolean hasHive = this.checkHive(chunk);
                     boolean hasDeepslate = !hasHive && this.checkCobbledDeepslate(chunk);
                     boolean hasVines = !hasHive && this.checkVines(chunk);
@@ -125,12 +124,12 @@ extends Module {
                     if ("repeater".equals(type)) {
                         this.lastMarkTime = System.currentTimeMillis();
                         this.foundChunks.clear();
-                        this.foundChunks.put((class_1923)positions.get(i), type);
+                        this.foundChunks.put((ChunkPos)positions.get(i), type);
                         this.notifyFound("repeater");
                     } else if (System.currentTimeMillis() - this.lastMarkTime >= 50000L) {
                         this.lastMarkTime = System.currentTimeMillis();
                         this.foundChunks.clear();
-                        this.foundChunks.put((class_1923)positions.get(i), type);
+                        this.foundChunks.put((ChunkPos)positions.get(i), type);
                         this.notifyFound("normal");
                     }
                     return;
@@ -142,29 +141,29 @@ extends Module {
         });
     }
 
-    private void collectChunks(List<class_1923> positions, List<class_2818> chunks) {
-        class_1923 pc = this.mc.field_1724.method_31476();
-        int dist = Math.min((Integer)this.mc.field_1690.method_42503().method_41753(), 8);
+    private void collectChunks(List<ChunkPos> positions, List<WorldChunk> chunks) {
+        ChunkPos pc = this.mc.player.getChunkPos();
+        int dist = Math.min((Integer)this.mc.options.getViewDistance().getValue(), 8);
         for (int dx = -dist; dx <= dist; ++dx) {
             for (int dz = -dist; dz <= dist; ++dz) {
-                class_1923 cp = new class_1923(pc.field_9181 + dx, pc.field_9180 + dz);
-                class_2818 chunk = this.mc.field_1687.method_2935().method_21730(cp.field_9181, cp.field_9180);
-                if (chunk == null || chunk.method_12223()) continue;
+                ChunkPos cp = new ChunkPos(pc.x + dx, pc.z + dz);
+                WorldChunk chunk = this.mc.world.getChunkManager().getWorldChunk(cp.x, cp.z);
+                if (chunk == null || chunk.isEmpty()) continue;
                 positions.add(cp);
                 chunks.add(chunk);
             }
         }
     }
 
-    private int countPoweredRepeaters(class_2818 chunk) {
+    private int countPoweredRepeaters(WorldChunk chunk) {
         int count = 0;
-        for (class_2826 section : chunk.method_12006()) {
-            if (section == null || section.method_38292() || !section.method_19523(bs -> bs.method_27852(class_2246.field_10450))) continue;
+        for (ChunkSection section : chunk.getSectionArray()) {
+            if (section == null || section.isEmpty() || !section.hasAny(bs -> bs.isOf(Blocks.REPEATER))) continue;
             for (int lx = 0; lx < 16; ++lx) {
                 for (int ly = 0; ly < 16; ++ly) {
                     for (int lz = 0; lz < 16; ++lz) {
-                        class_2680 bs2 = section.method_12254(lx, ly, lz);
-                        if (!bs2.method_27852(class_2246.field_10450) || !((Boolean)bs2.method_11654((class_2769)class_2462.field_10911)).booleanValue() || ++count < 3) continue;
+                        BlockState bs2 = section.getBlockState(lx, ly, lz);
+                        if (!bs2.isOf(Blocks.REPEATER) || !((Boolean)bs2.get((Property)RepeaterBlock.POWERED)).booleanValue() || ++count < 3) continue;
                         return count;
                     }
                 }
@@ -173,28 +172,28 @@ extends Module {
         return count;
     }
 
-    private boolean checkHive(class_2818 chunk) {
-        for (class_2586 be : chunk.method_12214().values()) {
-            class_4482 hive;
-            if (!(be instanceof class_4482) || (hive = (class_4482)be).method_23903() <= 0) continue;
+    private boolean checkHive(WorldChunk chunk) {
+        for (BlockEntity be : chunk.getBlockEntities().values()) {
+            BeehiveBlockEntity hive;
+            if (!(be instanceof BeehiveBlockEntity) || (hive = (BeehiveBlockEntity)be).getBeeCount() <= 0) continue;
             return true;
         }
         return false;
     }
 
-    private boolean checkCobbledDeepslate(class_2818 chunk) {
+    private boolean checkCobbledDeepslate(WorldChunk chunk) {
         int sectionY;
         int count = 0;
-        int bottomY = chunk.method_31607();
-        class_2826[] sections = chunk.method_12006();
+        int bottomY = chunk.getBottomY();
+        ChunkSection[] sections = chunk.getSectionArray();
         for (int si = 0; si < sections.length && (sectionY = bottomY + si * 16) <= 20; ++si) {
-            class_2826 s;
-            if (sectionY + 16 < 0 || (s = sections[si]) == null || s.method_38292() || !s.method_19523(bs -> bs.method_27852(class_2246.field_29031))) continue;
+            ChunkSection s;
+            if (sectionY + 16 < 0 || (s = sections[si]) == null || s.isEmpty() || !s.hasAny(bs -> bs.isOf(Blocks.COBBLED_DEEPSLATE))) continue;
             for (int lx = 0; lx < 16; ++lx) {
                 for (int ly = 0; ly < 16; ++ly) {
                     for (int lz = 0; lz < 16; ++lz) {
                         int wy = sectionY + ly;
-                        if (wy < 0 || wy > 20 || !s.method_12254(lx, ly, lz).method_27852(class_2246.field_29031) || ++count < 50) continue;
+                        if (wy < 0 || wy > 20 || !s.getBlockState(lx, ly, lz).isOf(Blocks.COBBLED_DEEPSLATE) || ++count < 50) continue;
                         return true;
                     }
                 }
@@ -203,14 +202,14 @@ extends Module {
         return false;
     }
 
-    private boolean checkVines(class_2818 chunk) {
+    private boolean checkVines(WorldChunk chunk) {
         int count = 0;
-        for (class_2826 s : chunk.method_12006()) {
-            if (s == null || s.method_38292() || !s.method_19523(bs -> bs.method_27852(class_2246.field_10597))) continue;
+        for (ChunkSection s : chunk.getSectionArray()) {
+            if (s == null || s.isEmpty() || !s.hasAny(bs -> bs.isOf(Blocks.VINE))) continue;
             for (int lx = 0; lx < 16; ++lx) {
                 for (int ly = 0; ly < 16; ++ly) {
                     for (int lz = 0; lz < 16; ++lz) {
-                        if (!s.method_12254(lx, ly, lz).method_27852(class_2246.field_10597) || ++count < 150) continue;
+                        if (!s.getBlockState(lx, ly, lz).isOf(Blocks.VINE) || ++count < 150) continue;
                         return true;
                     }
                 }
@@ -219,19 +218,19 @@ extends Module {
         return false;
     }
 
-    private boolean checkSeagrass(class_2818 chunk) {
+    private boolean checkSeagrass(WorldChunk chunk) {
         int sectionY;
         int count = 0;
-        int bottomY = chunk.method_31607();
-        class_2826[] sections = chunk.method_12006();
+        int bottomY = chunk.getBottomY();
+        ChunkSection[] sections = chunk.getSectionArray();
         for (int si = 0; si < sections.length && (sectionY = bottomY + si * 16) <= 70; ++si) {
-            class_2826 s = sections[si];
-            if (s == null || s.method_38292() || !s.method_19523(bs -> bs.method_27852(class_2246.field_10376) || bs.method_27852(class_2246.field_10238))) continue;
+            ChunkSection s = sections[si];
+            if (s == null || s.isEmpty() || !s.hasAny(bs -> bs.isOf(Blocks.SEAGRASS) || bs.isOf(Blocks.TALL_SEAGRASS))) continue;
             for (int lx = 0; lx < 16; ++lx) {
                 for (int ly = 0; ly < 16; ++ly) {
                     for (int lz = 0; lz < 16; ++lz) {
-                        class_2680 bs2 = s.method_12254(lx, ly, lz);
-                        if (!bs2.method_27852(class_2246.field_10376) && !bs2.method_27852(class_2246.field_10238) || ++count < 30) continue;
+                        BlockState bs2 = s.getBlockState(lx, ly, lz);
+                        if (!bs2.isOf(Blocks.SEAGRASS) && !bs2.isOf(Blocks.TALL_SEAGRASS) || ++count < 30) continue;
                         return true;
                     }
                 }
@@ -240,14 +239,14 @@ extends Module {
         return false;
     }
 
-    private boolean checkAnyRepeaters(class_2818 chunk) {
+    private boolean checkAnyRepeaters(WorldChunk chunk) {
         int count = 0;
-        for (class_2826 s : chunk.method_12006()) {
-            if (s == null || s.method_38292() || !s.method_19523(bs -> bs.method_27852(class_2246.field_10450))) continue;
+        for (ChunkSection s : chunk.getSectionArray()) {
+            if (s == null || s.isEmpty() || !s.hasAny(bs -> bs.isOf(Blocks.REPEATER))) continue;
             for (int lx = 0; lx < 16; ++lx) {
                 for (int ly = 0; ly < 16; ++ly) {
                     for (int lz = 0; lz < 16; ++lz) {
-                        if (!s.method_12254(lx, ly, lz).method_27852(class_2246.field_10450) || ++count < 3) continue;
+                        if (!s.getBlockState(lx, ly, lz).isOf(Blocks.REPEATER) || ++count < 3) continue;
                         return true;
                     }
                 }
@@ -258,14 +257,14 @@ extends Module {
 
     private void notifyFound(String type) {
         this.mc.execute(() -> {
-            if (this.mc.field_1724 == null) {
+            if (this.mc.player == null) {
                 return;
             }
             if ("repeater".equals(type)) {
-                this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)"\u00a78\u00a77[TuffChunkFinder] Repeater chunk found!"), false);
+                this.mc.player.sendMessage((Text)Text.literal((String)"\u00a78\u00a77[TuffChunkFinder] Repeater chunk found!"), false);
             } else {
                 int chance = 40 + new Random().nextInt(61);
-                this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a78\u00a77[TuffChunkFinder] Chunk found! \u00a7aBase chance: \u00a7f" + chance + "%")), false);
+                this.mc.player.sendMessage((Text)Text.literal((String)("\u00a78\u00a77[TuffChunkFinder] Chunk found! \u00a7aBase chance: \u00a7f" + chance + "%")), false);
             }
         });
     }
@@ -283,13 +282,13 @@ extends Module {
 
     @EventHandler
     private void onRender3D(Render3DEvent event) {
-        if (this.mc.field_1687 == null || this.foundChunks.isEmpty()) {
+        if (this.mc.world == null || this.foundChunks.isEmpty()) {
             return;
         }
-        for (Map.Entry<class_1923, String> entry : this.foundChunks.entrySet()) {
-            class_1923 cp = entry.getKey();
-            double x1 = (double)cp.field_9181 * 16.0;
-            double z1 = (double)cp.field_9180 * 16.0;
+        for (Map.Entry<ChunkPos, String> entry : this.foundChunks.entrySet()) {
+            ChunkPos cp = entry.getKey();
+            double x1 = (double)cp.x * 16.0;
+            double z1 = (double)cp.z * 16.0;
             double x2 = x1 + 16.0;
             double z2 = z1 + 16.0;
             double y1 = 63.0;

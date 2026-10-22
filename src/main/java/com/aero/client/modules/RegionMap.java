@@ -3,16 +3,16 @@ package com.aero.client.modules;
 import com.aero.client.AeroCategory;
 import java.util.HashMap;
 import java.util.Map;
-import meteordevelopment.meteorclient.events.render.Render2DEvent;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2487;
-import net.minecraft.class_332;
-import net.minecraft.class_3532;
+import com.aero.client.api.Render2DEvent;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.math.MathHelper;
 import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 
@@ -58,20 +58,20 @@ extends Module {
         this.lastMouseDown = false;
     }
 
-    public class_2487 toTag() {
-        class_2487 tag = super.toTag();
+    public NbtCompound toTag() {
+        NbtCompound tag = super.toTag();
         if (tag == null) {
-            tag = new class_2487();
+            tag = new NbtCompound();
         }
-        tag.method_10569("panelX", this.panelX);
-        tag.method_10569("panelY", this.panelY);
+        tag.putInt("panelX", this.panelX);
+        tag.putInt("panelY", this.panelY);
         return tag;
     }
 
-    public Module fromTag(class_2487 tag) {
+    public Module fromTag(NbtCompound tag) {
         super.fromTag(tag);
-        this.panelX = tag.method_10550("panelX").orElse(this.panelX);
-        this.panelY = tag.method_10550("panelY").orElse(this.panelY);
+        this.panelX = tag.getInt("panelX").orElse(this.panelX);
+        this.panelY = tag.getInt("panelY").orElse(this.panelY);
         return this;
     }
 
@@ -80,8 +80,8 @@ extends Module {
         this.render(event.drawContext);
     }
 
-    private void render(class_332 ctx) {
-        if (this.mc.field_1724 == null || this.mc.field_1687 == null) {
+    private void render(DrawContext ctx) {
+        if (this.mc.player == null || this.mc.world == null) {
             return;
         }
         float sc = ((Double)this.scale.get()).floatValue();
@@ -90,14 +90,14 @@ extends Module {
         int pad = 8;
         int panelW = pad + gridW + pad + legendW + pad;
         int panelH = pad + 99 - 1 + pad + 14 + pad;
-        int sw = this.mc.method_22683().method_4486();
-        int sh = this.mc.method_22683().method_4502();
-        this.panelX = class_3532.method_15340((int)this.panelX, (int)0, (int)Math.max(0, sw - (int)((float)panelW * sc)));
-        this.panelY = class_3532.method_15340((int)this.panelY, (int)0, (int)Math.max(0, sh - (int)((float)panelH * sc)));
+        int sw = this.mc.getWindow().getScaledWidth();
+        int sh = this.mc.getWindow().getScaledHeight();
+        this.panelX = MathHelper.clamp((int)this.panelX, (int)0, (int)Math.max(0, sw - (int)((float)panelW * sc)));
+        this.panelY = MathHelper.clamp((int)this.panelY, (int)0, (int)Math.max(0, sh - (int)((float)panelH * sc)));
         this.handleDrag((int)((float)panelW * sc), (int)((float)panelH * sc));
-        ctx.method_51448().pushMatrix();
-        ctx.method_51448().translate((float)this.panelX, (float)this.panelY);
-        ctx.method_51448().scale(sc, sc);
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().translate((float)this.panelX, (float)this.panelY);
+        ctx.getMatrices().scale(sc, sc);
         int bgColor = (Integer)this.bgOpacity.get() << 24 | 0xD0D0D;
         this.drawRoundRect(ctx, 0, 0, panelW, panelH, 8, bgColor);
         this.drawRoundRect(ctx, 0, 0, panelW, 16, 8, 0x9FFFFFF);
@@ -111,27 +111,27 @@ extends Module {
                 if (info == null) continue;
                 int cx = gridLeft + col * 11;
                 int cy = gridTop + row * 11;
-                int typeIdx = class_3532.method_15340((int)info.regionType(), (int)0, (int)(RC.length - 1));
+                int typeIdx = MathHelper.clamp((int)info.regionType(), (int)0, (int)(RC.length - 1));
                 int cellColor = RC[typeIdx] & 0xFFFFFF | 0xD8000000;
-                ctx.method_25294(cx, cy, cx + 10, cy + 10, cellColor);
+                ctx.fill(cx, cy, cx + 10, cy + 10, cellColor);
                 this.drawTinyText(ctx, String.valueOf(info.regionId()), cx + 1, cy + 2);
             }
         }
-        double px_ = this.mc.field_1724.method_23317();
-        double pz_ = this.mc.field_1724.method_23321();
-        double cellFX = class_3532.method_15350((double)((px_ + 225000.0) / 50000.0), (double)0.0, (double)8.99);
-        double cellFZ = class_3532.method_15350((double)((pz_ + 225000.0) / 50000.0), (double)0.0, (double)8.99);
+        double px_ = this.mc.player.getX();
+        double pz_ = this.mc.player.getZ();
+        double cellFX = MathHelper.clamp((double)((px_ + 225000.0) / 50000.0), (double)0.0, (double)8.99);
+        double cellFZ = MathHelper.clamp((double)((pz_ + 225000.0) / 50000.0), (double)0.0, (double)8.99);
         int dotX = (int)Math.round((double)gridLeft + cellFX * 11.0);
         int dotY = (int)Math.round((double)gridTop + cellFZ * 11.0);
-        ctx.method_25294(dotX - 2, dotY - 2, dotX + 3, dotY + 3, -1);
-        ctx.method_25294(dotX - 1, dotY - 1, dotX + 2, dotY + 2, -14829228);
+        ctx.fill(dotX - 2, dotY - 2, dotX + 3, dotY + 3, -1);
+        ctx.fill(dotX - 1, dotY - 1, dotX + 2, dotY + 2, -14829228);
         int lx = gridLeft + gridW + pad;
         int ly = gridTop;
-        ctx.method_51433(this.mc.field_1772, "Regions", lx, ly, -1, false);
+        ctx.drawText(this.mc.textRenderer, "Regions", lx, ly, -1, false);
         ly += 10;
         for (int t = 0; t < REGION_NAMES.length; ++t) {
             int typeColor = RC[t] & 0xFFFFFF | 0xFF000000;
-            ctx.method_25294(lx, ly + 2, lx + 6, ly + 8, typeColor);
+            ctx.fill(lx, ly + 2, lx + 6, ly + 8, typeColor);
             this.drawSmallText(ctx, REGION_NAMES[t], lx + 9, ly + 1, -6645094);
             ly += 10;
         }
@@ -139,49 +139,49 @@ extends Module {
         String regionName = RegionMap.getRegionTypeName(px_, pz_);
         this.drawSmallText(ctx, "R:" + String.valueOf(regionId >= 0 ? Integer.valueOf(regionId) : "?") + " " + regionName, lx, ly += 2, -1);
         this.drawSmallText(ctx, "X:" + (int)Math.floor(px_) + " Z:" + (int)Math.floor(pz_), lx, ly += 9, -6645094);
-        ctx.method_51448().popMatrix();
+        ctx.getMatrices().popMatrix();
     }
 
-    private void drawRoundRect(class_332 ctx, int x, int y, int w, int h, int r, int color) {
-        ctx.method_25294(x + r, y, x + w - r, y + h, color);
-        ctx.method_25294(x, y + r, x + r, y + h - r, color);
-        ctx.method_25294(x + w - r, y + r, x + w, y + h - r, color);
-        ctx.method_25294(x, y, x + r, y + r, color);
-        ctx.method_25294(x + w - r, y, x + w, y + r, color);
-        ctx.method_25294(x, y + h - r, x + r, y + h, color);
-        ctx.method_25294(x + w - r, y + h - r, x + w, y + h, color);
+    private void drawRoundRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        ctx.fill(x + r, y, x + w - r, y + h, color);
+        ctx.fill(x, y + r, x + r, y + h - r, color);
+        ctx.fill(x + w - r, y + r, x + w, y + h - r, color);
+        ctx.fill(x, y, x + r, y + r, color);
+        ctx.fill(x + w - r, y, x + w, y + r, color);
+        ctx.fill(x, y + h - r, x + r, y + h, color);
+        ctx.fill(x + w - r, y + h - r, x + w, y + h, color);
     }
 
-    private void drawRoundRectBorder(class_332 ctx, int x, int y, int w, int h, int r, int color) {
-        ctx.method_25294(x + r, y, x + w - r, y + 1, color);
-        ctx.method_25294(x + r, y + h - 1, x + w - r, y + h, color);
-        ctx.method_25294(x, y + r, x + 1, y + h - r, color);
-        ctx.method_25294(x + w - 1, y + r, x + w, y + h - r, color);
+    private void drawRoundRectBorder(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        ctx.fill(x + r, y, x + w - r, y + 1, color);
+        ctx.fill(x + r, y + h - 1, x + w - r, y + h, color);
+        ctx.fill(x, y + r, x + 1, y + h - r, color);
+        ctx.fill(x + w - 1, y + r, x + w, y + h - r, color);
     }
 
-    private void drawSmallText(class_332 ctx, String text, int x, int y, int color) {
-        Matrix3x2fStack pose = ctx.method_51448();
+    private void drawSmallText(DrawContext ctx, String text, int x, int y, int color) {
+        Matrix3x2fStack pose = ctx.getMatrices();
         pose.pushMatrix();
         pose.translate((float)x, (float)y);
         pose.scale(0.75f, 0.75f);
-        ctx.method_51433(this.mc.field_1772, text, 0, 0, color, false);
+        ctx.drawText(this.mc.textRenderer, text, 0, 0, color, false);
         pose.popMatrix();
     }
 
-    private void drawTinyText(class_332 ctx, String text, int x, int y) {
-        Matrix3x2fStack pose = ctx.method_51448();
+    private void drawTinyText(DrawContext ctx, String text, int x, int y) {
+        Matrix3x2fStack pose = ctx.getMatrices();
         pose.pushMatrix();
         pose.translate((float)x, (float)y);
         pose.scale(0.5f, 0.5f);
-        ctx.method_51433(this.mc.field_1772, text, 0, 0, -1, false);
+        ctx.drawText(this.mc.textRenderer, text, 0, 0, -1, false);
         pose.popMatrix();
     }
 
     private void handleDrag(int panelW, int panelH) {
         boolean overPanel;
-        long window = this.mc.method_22683().method_4490();
-        double mx = this.mc.field_1729.method_1603() * (double)this.mc.method_22683().method_4486() / (double)this.mc.method_22683().method_4480();
-        double my = this.mc.field_1729.method_1604() * (double)this.mc.method_22683().method_4502() / (double)this.mc.method_22683().method_4507();
+        long window = this.mc.getWindow().getHandle();
+        double mx = this.mc.mouse.getX() * (double)this.mc.getWindow().getScaledWidth() / (double)this.mc.getWindow().getWidth();
+        double my = this.mc.mouse.getY() * (double)this.mc.getWindow().getScaledHeight() / (double)this.mc.getWindow().getHeight();
         boolean mouseDown = GLFW.glfwGetMouseButton((long)window, (int)0) == 1;
         boolean bl = overPanel = mx >= (double)this.panelX && mx <= (double)(this.panelX + panelW) && my >= (double)this.panelY && my <= (double)(this.panelY + panelH);
         if (mouseDown && !this.lastMouseDown && overPanel) {
@@ -221,7 +221,7 @@ extends Module {
         if (r == null) {
             return "Unknown";
         }
-        int t = class_3532.method_15340((int)r.regionType(), (int)0, (int)(REGION_NAMES.length - 1));
+        int t = MathHelper.clamp((int)r.regionType(), (int)0, (int)(REGION_NAMES.length - 1));
         return REGION_NAMES[t];
     }
 

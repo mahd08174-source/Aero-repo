@@ -10,14 +10,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.class_1934;
-import net.minecraft.class_268;
-import net.minecraft.class_2960;
-import net.minecraft.class_310;
-import net.minecraft.class_634;
-import net.minecraft.class_640;
-import net.minecraft.class_8685;
-
+import net.minecraft.world.GameMode;
+import net.minecraft.scoreboard.Team;
+import net.minecraft.util.Identifier;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.entity.player.SkinTextures;
 public final class StaffTracker {
     private static final int SCAN_INTERVAL = 10;
     private final StaffList module;
@@ -53,36 +52,36 @@ public final class StaffTracker {
     }
 
     private void scan() {
-        class_310 mc = class_310.method_1551();
-        class_634 conn = mc.method_1562();
-        if (conn == null || mc.field_1724 == null) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        ClientPlayNetworkHandler conn = mc.getNetworkHandler();
+        if (conn == null || mc.player == null) {
             this.current = List.of();
             this.lastNames = new HashSet<String>();
             this.primed = false;
             return;
         }
         StaffDetector.DetectConfig cfg = this.module.detectConfig();
-        UUID self = mc.field_1724.method_5667();
+        UUID self = mc.player.getUuid();
         HashSet inWorld = new HashSet();
-        if (mc.field_1687 != null) {
-            mc.field_1687.method_18456().forEach(p -> inWorld.add(p.method_5667()));
+        if (mc.world != null) {
+            mc.world.getPlayers().forEach(p -> inWorld.add(p.getUuid()));
         }
         ArrayList<StaffEntry> found = new ArrayList<StaffEntry>();
-        for (class_640 info : conn.method_2880()) {
+        for (PlayerListEntry info : conn.getPlayerList()) {
             boolean vanished;
             String name;
-            UUID id = info.method_2966().id();
-            if (id.equals(self) || (name = info.method_2966().name()) == null || name.isEmpty()) continue;
-            boolean bl = vanished = info.method_2958() == class_1934.field_9219 || !inWorld.contains(id);
+            UUID id = info.getProfile().id();
+            if (id.equals(self) || (name = info.getProfile().name()) == null || name.isEmpty()) continue;
+            boolean bl = vanished = info.getGameMode() == GameMode.SPECTATOR || !inWorld.contains(id);
             if (vanished && !cfg.showVanished()) continue;
-            class_268 team = info.method_2955();
-            StaffEntry entry = StaffDetector.classify(name, info.method_2971(), team != null ? team.method_1144() : null, team != null ? team.method_1136() : null, team != null ? team.method_1197() : null, vanished, info.method_2959(), cfg);
+            Team team = info.getScoreboardTeam();
+            StaffEntry entry = StaffDetector.classify(name, info.getDisplayName(), team != null ? team.getPrefix() : null, team != null ? team.getSuffix() : null, team != null ? team.getName() : null, vanished, info.getLatency(), cfg);
             if (entry == null) continue;
-            class_2960 skin = null;
+            Identifier skin = null;
             try {
-                class_8685 textures = info.method_52810();
-                if (textures != null && textures.comp_1626() != null) {
-                    skin = textures.comp_1626().comp_3627();
+                SkinTextures textures = info.getSkinTextures();
+                if (textures != null && textures.body() != null) {
+                    skin = textures.body().texturePath();
                 }
             }
             catch (Exception exception) {

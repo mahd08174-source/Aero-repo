@@ -3,29 +3,28 @@ package com.aero.client.modules;
 import com.aero.client.AeroCategory;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.ChunkDataEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1923;
-import net.minecraft.class_2246;
-import net.minecraft.class_2248;
-import net.minecraft.class_2338;
-import net.minecraft.class_2350;
-import net.minecraft.class_2680;
-import net.minecraft.class_2741;
-import net.minecraft.class_2769;
-import net.minecraft.class_2818;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.ChunkDataEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.state.property.Property;
+import net.minecraft.world.chunk.WorldChunk;
 public class PlayerChunkFinder
 extends Module {
     private final SettingGroup sg;
@@ -35,7 +34,7 @@ extends Module {
     public final Setting<Boolean> filledEsp;
     public final Setting<SettingColor> fillColor;
     public final Setting<SettingColor> lineColor;
-    private final Map<class_1923, String> modifiedChunks;
+    private final Map<ChunkPos, String> modifiedChunks;
 
     public PlayerChunkFinder() {
         super(AeroCategory.CATEGORY, "player-chunk-finder", "Detects underground player-modified chunks via incoming chunk packets.");
@@ -46,7 +45,7 @@ extends Module {
         this.filledEsp = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("filled-esp")).defaultValue(true)).build());
         this.fillColor = this.sg.add((Setting)((ColorSetting.Builder)new ColorSetting.Builder().name("fill-color")).defaultValue(new SettingColor(255, 82, 82, 80)).build());
         this.lineColor = this.sg.add((Setting)((ColorSetting.Builder)new ColorSetting.Builder().name("line-color")).defaultValue(new SettingColor(255, 82, 82, 255)).build());
-        this.modifiedChunks = new LinkedHashMap<class_1923, String>();
+        this.modifiedChunks = new LinkedHashMap<ChunkPos, String>();
     }
 
     public void onActivate() {
@@ -59,11 +58,11 @@ extends Module {
 
     @EventHandler
     private void onChunkData(ChunkDataEvent event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
-        class_2818 chunk = event.chunk();
-        class_1923 chunkPos = chunk.method_12004();
+        WorldChunk chunk = event.chunk();
+        ChunkPos chunkPos = chunk.getPos();
         if (this.modifiedChunks.containsKey(chunkPos)) {
             return;
         }
@@ -72,24 +71,24 @@ extends Module {
             return;
         }
         this.modifiedChunks.put(chunkPos, reason);
-        this.info("Modified chunk at " + chunkPos.field_9181 + ", " + chunkPos.field_9180 + " \u00a77(" + reason + ")", new Object[0]);
+        this.info("Modified chunk at " + chunkPos.x + ", " + chunkPos.z + " \u00a77(" + reason + ")", new Object[0]);
     }
 
-    private String scanChunk(class_1923 chunkPos, class_2818 chunk) {
-        int originX = chunkPos.method_8326();
-        int originZ = chunkPos.method_8328();
-        int minY = Math.max(this.mc.field_1687.method_31607(), -64);
-        int maxY = Math.min(minY + this.mc.field_1687.method_31605() - 1, 0);
-        class_2338.class_2339 cursor = new class_2338.class_2339();
+    private String scanChunk(ChunkPos chunkPos, WorldChunk chunk) {
+        int originX = chunkPos.getStartX();
+        int originZ = chunkPos.getStartZ();
+        int minY = Math.max(this.mc.world.getBottomY(), -64);
+        int maxY = Math.min(minY + this.mc.world.getHeight() - 1, 0);
+        BlockPos.Mutable cursor = new BlockPos.Mutable();
         for (int x = originX; x < originX + 16; ++x) {
             for (int z = originZ; z < originZ + 16; ++z) {
                 for (int y = minY; y < maxY; ++y) {
-                    cursor.method_10103(x, y, z);
-                    class_2680 state = chunk.method_8320((class_2338)cursor);
+                    cursor.set(x, y, z);
+                    BlockState state = chunk.getBlockState((BlockPos)cursor);
                     if (PlayerChunkFinder.isRotatedDeepslate(state)) {
                         return "MODIFIED_DEEPSLATE";
                     }
-                    if (!((Boolean)this.detectUnnatural.get()).booleanValue() || !PlayerChunkFinder.isUnnaturalUndergroundBlock(state.method_26204())) continue;
+                    if (!((Boolean)this.detectUnnatural.get()).booleanValue() || !PlayerChunkFinder.isUnnaturalUndergroundBlock(state.getBlock())) continue;
                     return "UNNATURAL";
                 }
             }
@@ -97,33 +96,33 @@ extends Module {
         return null;
     }
 
-    private static boolean isRotatedDeepslate(class_2680 state) {
-        if (state.method_26204() != class_2246.field_28888) {
+    private static boolean isRotatedDeepslate(BlockState state) {
+        if (state.getBlock() != Blocks.DEEPSLATE) {
             return false;
         }
-        if (!state.method_28498((class_2769)class_2741.field_12496)) {
+        if (!state.contains((Property)Properties.AXIS)) {
             return false;
         }
-        return state.method_11654((class_2769)class_2741.field_12496) != class_2350.class_2351.field_11052;
+        return state.get((Property)Properties.AXIS) != Direction.Axis.Y;
     }
 
-    private static boolean isUnnaturalUndergroundBlock(class_2248 b) {
-        return b == class_2246.field_10445 || b == class_2246.field_29031 || b == class_2246.field_10161 || b == class_2246.field_9975 || b == class_2246.field_10148 || b == class_2246.field_10334 || b == class_2246.field_10218 || b == class_2246.field_10075 || b == class_2246.field_37577 || b == class_2246.field_42751 || b == class_2246.field_22126 || b == class_2246.field_22127 || b == class_2246.field_10336 || b == class_2246.field_10099 || b == class_2246.field_9983 || b == class_2246.field_10167 || b == class_2246.field_9980 || b == class_2246.field_10181 || b == class_2246.field_16333 || b == class_2246.field_16334 || b == class_2246.field_10034 || b == class_2246.field_10380 || b == class_2246.field_16328 || b == class_2246.field_10033;
+    private static boolean isUnnaturalUndergroundBlock(Block b) {
+        return b == Blocks.COBBLESTONE || b == Blocks.COBBLED_DEEPSLATE || b == Blocks.OAK_PLANKS || b == Blocks.SPRUCE_PLANKS || b == Blocks.BIRCH_PLANKS || b == Blocks.JUNGLE_PLANKS || b == Blocks.ACACIA_PLANKS || b == Blocks.DARK_OAK_PLANKS || b == Blocks.MANGROVE_PLANKS || b == Blocks.CHERRY_PLANKS || b == Blocks.CRIMSON_PLANKS || b == Blocks.WARPED_PLANKS || b == Blocks.TORCH || b == Blocks.WALL_TORCH || b == Blocks.LADDER || b == Blocks.RAIL || b == Blocks.CRAFTING_TABLE || b == Blocks.FURNACE || b == Blocks.BLAST_FURNACE || b == Blocks.SMOKER || b == Blocks.CHEST || b == Blocks.TRAPPED_CHEST || b == Blocks.BARREL || b == Blocks.GLASS;
     }
 
     @EventHandler
     private void onRender3D(Render3DEvent event) {
-        if (this.mc.field_1724 == null || this.modifiedChunks.isEmpty()) {
+        if (this.mc.player == null || this.modifiedChunks.isEmpty()) {
             return;
         }
         int radius = (Integer)this.renderRadius.get();
-        int pcx = this.mc.field_1724.method_31476().field_9181;
-        int pcz = this.mc.field_1724.method_31476().field_9180;
+        int pcx = this.mc.player.getChunkPos().x;
+        int pcz = this.mc.player.getChunkPos().z;
         double y = (Double)this.renderY.get();
-        for (class_1923 pos : this.modifiedChunks.keySet()) {
-            if (Math.abs(pos.field_9181 - pcx) > radius || Math.abs(pos.field_9180 - pcz) > radius) continue;
-            double x1 = pos.method_8326();
-            double z1 = pos.method_8328();
+        for (ChunkPos pos : this.modifiedChunks.keySet()) {
+            if (Math.abs(pos.x - pcx) > radius || Math.abs(pos.z - pcz) > radius) continue;
+            double x1 = pos.getStartX();
+            double z1 = pos.getStartZ();
             if (((Boolean)this.filledEsp.get()).booleanValue()) {
                 event.renderer.box(x1, y, z1, x1 + 16.0, y + 0.12, z1 + 16.0, (Color)this.fillColor.get(), (Color)this.lineColor.get(), ShapeMode.Both, 0);
                 continue;

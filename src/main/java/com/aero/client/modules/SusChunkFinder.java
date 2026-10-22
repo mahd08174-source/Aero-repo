@@ -5,27 +5,26 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1923;
-import net.minecraft.class_2246;
-import net.minecraft.class_2248;
-import net.minecraft.class_2338;
-import net.minecraft.class_2680;
-import net.minecraft.class_2741;
-import net.minecraft.class_2769;
-import net.minecraft.class_2818;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.block.BlockState;
+import net.minecraft.state.property.Properties;
+import net.minecraft.state.property.Property;
+import net.minecraft.world.chunk.WorldChunk;
 public class SusChunkFinder
 extends Module {
     public static final int CHUNKS_PER_TICK = 3;
@@ -42,10 +41,10 @@ extends Module {
     public final Setting<Boolean> detectSugarCane;
     public final Setting<Boolean> detectCocoaBeans;
     public final Setting<Boolean> detectAmethyst;
-    public final Map<class_1923, ChunkHit> hits;
-    public final Set<class_1923> scanned;
-    public final Set<class_1923> queued;
-    public final ArrayDeque<class_1923> scanQueue;
+    public final Map<ChunkPos, ChunkHit> hits;
+    public final Set<ChunkPos> scanned;
+    public final Set<ChunkPos> queued;
+    public final ArrayDeque<ChunkPos> scanQueue;
     public int rescanTimer;
 
     public SusChunkFinder() {
@@ -62,7 +61,7 @@ extends Module {
         this.detectSugarCane = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("sugar-cane")).defaultValue(true)).build());
         this.detectCocoaBeans = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("cocoa-beans")).defaultValue(true)).build());
         this.detectAmethyst = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("amethyst")).defaultValue(true)).build());
-        this.hits = new ConcurrentHashMap<class_1923, ChunkHit>();
+        this.hits = new ConcurrentHashMap<ChunkPos, ChunkHit>();
         this.scanned = ConcurrentHashMap.newKeySet();
         this.queued = ConcurrentHashMap.newKeySet();
         this.scanQueue = new ArrayDeque();
@@ -79,8 +78,8 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        class_1923 pos;
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        ChunkPos pos;
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         if (++this.rescanTimer >= 400) {
@@ -90,8 +89,8 @@ extends Module {
         this.enqueueChunks();
         for (int n = 0; n < 3 && (pos = this.scanQueue.poll()) != null; ++n) {
             this.queued.remove(pos);
-            class_2818 chunk = this.mc.field_1687.method_8497(pos.field_9181, pos.field_9180);
-            if (chunk == null || chunk.method_12223() || !this.scanned.add(pos)) continue;
+            WorldChunk chunk = this.mc.world.getChunk(pos.x, pos.z);
+            if (chunk == null || chunk.isEmpty() || !this.scanned.add(pos)) continue;
             this.scanChunk(chunk, pos);
         }
     }
@@ -101,19 +100,19 @@ extends Module {
         if (this.hits.isEmpty()) {
             return;
         }
-        for (class_1923 pos : this.hits.keySet()) {
-            double x1 = pos.method_8326();
-            double z1 = pos.method_8328();
+        for (ChunkPos pos : this.hits.keySet()) {
+            double x1 = pos.getStartX();
+            double z1 = pos.getStartZ();
             event.renderer.box(x1, 63.0, z1, x1 + 16.0, 63.15, z1 + 16.0, (Color)this.fillColor.get(), (Color)this.lineColor.get(), ShapeMode.Both, 0);
         }
     }
 
     public void enqueueChunks() {
-        class_1923 center = this.mc.field_1724.method_31476();
+        ChunkPos center = this.mc.player.getChunkPos();
         int radius = Math.min((Integer)this.simDistance.get(), this.viewDist());
         for (int dx = -radius; dx <= radius; ++dx) {
             for (int dz = -radius; dz <= radius; ++dz) {
-                class_1923 pos = new class_1923(center.field_9181 + dx, center.field_9180 + dz);
+                ChunkPos pos = new ChunkPos(center.x + dx, center.z + dz);
                 if (this.scanned.contains(pos) || !this.queued.add(pos)) continue;
                 this.scanQueue.offer(pos);
             }
@@ -121,23 +120,23 @@ extends Module {
     }
 
     public void cleanUpFarHits() {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
-        class_1923 center = this.mc.field_1724.method_31476();
+        ChunkPos center = this.mc.player.getChunkPos();
         int maxDist = Math.max((Integer)this.simDistance.get(), this.viewDist()) + 4;
-        this.hits.keySet().removeIf(p -> Math.abs(p.field_9181 - center.field_9181) > maxDist || Math.abs(p.field_9180 - center.field_9180) > maxDist);
-        this.scanned.removeIf(p -> Math.abs(p.field_9181 - center.field_9181) > maxDist || Math.abs(p.field_9180 - center.field_9180) > maxDist);
-        this.queued.removeIf(p -> Math.abs(p.field_9181 - center.field_9181) > maxDist || Math.abs(p.field_9180 - center.field_9180) > maxDist);
+        this.hits.keySet().removeIf(p -> Math.abs(p.x - center.x) > maxDist || Math.abs(p.z - center.z) > maxDist);
+        this.scanned.removeIf(p -> Math.abs(p.x - center.x) > maxDist || Math.abs(p.z - center.z) > maxDist);
+        this.queued.removeIf(p -> Math.abs(p.x - center.x) > maxDist || Math.abs(p.z - center.z) > maxDist);
     }
 
-    public void scanChunk(class_2818 chunk, class_1923 chunkPos) {
-        class_2338.class_2339 cursor = new class_2338.class_2339();
-        class_2338.class_2339 amCursor = new class_2338.class_2339();
-        int originX = chunkPos.method_8326();
-        int originZ = chunkPos.method_8328();
-        int minY = this.mc.field_1687.method_31607();
-        int maxY = minY + this.mc.field_1687.method_31605();
+    public void scanChunk(WorldChunk chunk, ChunkPos chunkPos) {
+        BlockPos.Mutable cursor = new BlockPos.Mutable();
+        BlockPos.Mutable amCursor = new BlockPos.Mutable();
+        int originX = chunkPos.getStartX();
+        int originZ = chunkPos.getStartZ();
+        int minY = this.mc.world.getBottomY();
+        int maxY = minY + this.mc.world.getHeight();
         int[] kelpRuns = new int[256];
         int[] caveVineRuns = new int[256];
         int[] vineRuns = new int[256];
@@ -157,46 +156,46 @@ extends Module {
                 int vb = 0;
                 int scb = 0;
                 for (int y = minY; y <= maxY; ++y) {
-                    class_2680 state;
-                    cursor.method_10103(originX + dx, y, originZ + dz);
+                    BlockState state;
+                    cursor.set(originX + dx, y, originZ + dz);
                     try {
-                        state = chunk.method_8320((class_2338)cursor);
+                        state = chunk.getBlockState((BlockPos)cursor);
                     }
                     catch (Exception e) {
                         continue;
                     }
-                    class_2248 block = state.method_26204();
-                    if (block == class_2246.field_9993 || block == class_2246.field_10463) {
+                    Block block = state.getBlock();
+                    if (block == Blocks.KELP || block == Blocks.KELP_PLANT) {
                         if (++kr > kb) {
                             kb = kr;
                         }
                     } else {
                         kr = 0;
                     }
-                    if (block == class_2246.field_28675 || block == class_2246.field_28676) {
+                    if (block == Blocks.CAVE_VINES || block == Blocks.CAVE_VINES_PLANT) {
                         if (++cvr > cvb) {
                             cvb = cvr;
                         }
                     } else {
                         cvr = 0;
                     }
-                    if (block == class_2246.field_10597) {
+                    if (block == Blocks.VINE) {
                         if (++vr > vb) {
                             vb = vr;
                         }
                     } else {
                         vr = 0;
                     }
-                    if (block == class_2246.field_10424) {
+                    if (block == Blocks.SUGAR_CANE) {
                         if (++scr > scb) {
                             scb = scr;
                         }
                     } else {
                         scr = 0;
                     }
-                    if (block == class_2246.field_16999 && state.method_28498((class_2769)class_2741.field_12497)) {
+                    if (block == Blocks.SWEET_BERRY_BUSH && state.contains((Property)Properties.AGE_3)) {
                         try {
-                            if ((Integer)state.method_11654((class_2769)class_2741.field_12497) >= 3) {
+                            if ((Integer)state.get((Property)Properties.AGE_3) >= 3) {
                                 ++ripeBerries;
                             }
                         }
@@ -204,10 +203,10 @@ extends Module {
                             // empty catch block
                         }
                     }
-                    if (block == class_2246.field_10302) {
+                    if (block == Blocks.COCOA) {
                         ++cocoaCount;
                     }
-                    if (block != class_2246.field_27160 || this.hasAmethystGrowthOnAnyFace(amCursor, originX + dx, y, originZ + dz)) continue;
+                    if (block != Blocks.BUDDING_AMETHYST || this.hasAmethystGrowthOnAnyFace(amCursor, originX + dx, y, originZ + dz)) continue;
                     ++strippedBudding;
                 }
                 kelpRuns[col] = kb;
@@ -259,19 +258,19 @@ extends Module {
         }
     }
 
-    public boolean hasAmethystGrowthOnAnyFace(class_2338.class_2339 cursor, int x, int y, int z) {
+    public boolean hasAmethystGrowthOnAnyFace(BlockPos.Mutable cursor, int x, int y, int z) {
         int[][] offsets;
         for (int[] off : offsets = new int[][]{{0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}}) {
-            cursor.method_10103(x + off[0], y + off[1], z + off[2]);
-            class_2248 b = this.mc.field_1687.method_8320((class_2338)cursor).method_26204();
-            if (b != class_2246.field_27161 && b != class_2246.field_27162 && b != class_2246.field_27163 && b != class_2246.field_27164) continue;
+            cursor.set(x + off[0], y + off[1], z + off[2]);
+            Block b = this.mc.world.getBlockState((BlockPos)cursor).getBlock();
+            if (b != Blocks.AMETHYST_CLUSTER && b != Blocks.LARGE_AMETHYST_BUD && b != Blocks.MEDIUM_AMETHYST_BUD && b != Blocks.SMALL_AMETHYST_BUD) continue;
             return true;
         }
         return false;
     }
 
     public int viewDist() {
-        return this.mc.field_1690 == null ? 8 : (Integer)this.mc.field_1690.method_42503().method_41753();
+        return this.mc.options == null ? 8 : (Integer)this.mc.options.getViewDistance().getValue();
     }
 
     public void clear() {
@@ -282,7 +281,7 @@ extends Module {
         this.rescanTimer = 0;
     }
 
-    public record ChunkHit(class_1923 pos, String reason) {
+    public record ChunkHit(ChunkPos pos, String reason) {
     }
 }
 

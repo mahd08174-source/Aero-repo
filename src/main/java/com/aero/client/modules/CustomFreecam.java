@@ -1,15 +1,15 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_243;
-import net.minecraft.class_3532;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.MathHelper;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
@@ -45,52 +45,52 @@ extends Module {
     }
 
     public void onActivate() {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             this.toggle();
             return;
         }
-        this.savedPlayerYaw = this.mc.field_1724.method_36454();
-        this.savedPlayerPitch = this.mc.field_1724.method_36455();
-        this.wasSneaking = this.mc.field_1724.method_5715();
+        this.savedPlayerYaw = this.mc.player.getYaw();
+        this.savedPlayerPitch = this.mc.player.getPitch();
+        this.wasSneaking = this.mc.player.isSneaking();
         this.yaw = this.savedPlayerYaw;
         this.pitch = this.savedPlayerPitch;
         this.prevYaw = this.yaw;
         this.prevPitch = this.pitch;
-        class_243 cam = this.mc.field_1724.method_5836(1.0f);
-        this.currentPos.set(cam.field_1352, cam.field_1351, cam.field_1350);
-        this.prevPos.set(cam.field_1352, cam.field_1351, cam.field_1350);
+        Vec3d cam = this.mc.player.getCameraPosVec(1.0f);
+        this.currentPos.set(cam.x, cam.y, cam.z);
+        this.prevPos.set(cam.x, cam.y, cam.z);
         this.velocity.set(0.0, 0.0, 0.0);
         this.lastTickTime = System.currentTimeMillis();
-        this.mc.field_1730 = false;
+        this.mc.chunkCullingEnabled = false;
     }
 
     public void onDeactivate() {
-        if (this.mc.field_1724 != null) {
-            this.mc.field_1724.method_36456(this.savedPlayerYaw);
-            this.mc.field_1724.method_36457(this.savedPlayerPitch);
-            this.mc.field_1724.method_5847(this.savedPlayerYaw);
-            this.mc.field_1724.method_5636(this.savedPlayerYaw);
-            this.mc.field_1724.method_5660(this.wasSneaking);
+        if (this.mc.player != null) {
+            this.mc.player.setYaw(this.savedPlayerYaw);
+            this.mc.player.setPitch(this.savedPlayerPitch);
+            this.mc.player.setHeadYaw(this.savedPlayerYaw);
+            this.mc.player.setBodyYaw(this.savedPlayerYaw);
+            this.mc.player.setSneaking(this.wasSneaking);
         }
-        this.mc.field_1730 = true;
+        this.mc.chunkCullingEnabled = true;
         this.velocity.set(0.0, 0.0, 0.0);
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
-        float yawDelta = this.mc.field_1724.method_36454() - this.savedPlayerYaw;
-        float pitchDelta = this.mc.field_1724.method_36455() - this.savedPlayerPitch;
-        this.yaw = class_3532.method_15393((float)(this.yaw + yawDelta));
-        this.pitch = class_3532.method_15363((float)(this.pitch + pitchDelta), (float)-90.0f, (float)90.0f);
-        this.mc.field_1724.method_36456(this.savedPlayerYaw);
-        this.mc.field_1724.method_36457(this.savedPlayerPitch);
-        this.mc.field_1724.method_5847(this.savedPlayerYaw);
-        this.mc.field_1724.method_5636(this.savedPlayerYaw);
+        float yawDelta = this.mc.player.getYaw() - this.savedPlayerYaw;
+        float pitchDelta = this.mc.player.getPitch() - this.savedPlayerPitch;
+        this.yaw = MathHelper.wrapDegrees((float)(this.yaw + yawDelta));
+        this.pitch = MathHelper.clamp((float)(this.pitch + pitchDelta), (float)-90.0f, (float)90.0f);
+        this.mc.player.setYaw(this.savedPlayerYaw);
+        this.mc.player.setPitch(this.savedPlayerPitch);
+        this.mc.player.setHeadYaw(this.savedPlayerYaw);
+        this.mc.player.setBodyYaw(this.savedPlayerYaw);
         if (((Boolean)this.keepSneak.get()).booleanValue() && this.wasSneaking) {
-            this.mc.field_1724.method_5660(true);
+            this.mc.player.setSneaking(true);
         }
         this.prevPos.set((Vector3dc)this.currentPos);
         this.prevYaw = this.yaw;
@@ -102,7 +102,7 @@ extends Module {
         }
         this.lastTickTime = now;
         double spd = (Double)this.speed.get() * 2.0;
-        if (this.mc.field_1690.field_1867.method_1434()) {
+        if (this.mc.options.sprintKey.isPressed()) {
             spd *= 2.0;
         }
         float yawRad = (float)Math.toRadians(this.yaw);
@@ -113,34 +113,34 @@ extends Module {
         double tx = 0.0;
         double ty = 0.0;
         double tz = 0.0;
-        if (this.mc.field_1690.field_1894.method_1434()) {
+        if (this.mc.options.forwardKey.isPressed()) {
             tx += fwdX * spd;
             tz += fwdZ * spd;
         }
-        if (this.mc.field_1690.field_1881.method_1434()) {
+        if (this.mc.options.backKey.isPressed()) {
             tx -= fwdX * spd;
             tz -= fwdZ * spd;
         }
-        if (this.mc.field_1690.field_1849.method_1434()) {
+        if (this.mc.options.rightKey.isPressed()) {
             tx += rightX * spd;
             tz += rightZ * spd;
         }
-        if (this.mc.field_1690.field_1913.method_1434()) {
+        if (this.mc.options.leftKey.isPressed()) {
             tx -= rightX * spd;
             tz -= rightZ * spd;
         }
-        if (this.mc.field_1690.field_1903.method_1434()) {
+        if (this.mc.options.jumpKey.isPressed()) {
             ty += spd;
         }
-        if (this.mc.field_1690.field_1832.method_1434()) {
+        if (this.mc.options.sneakKey.isPressed()) {
             ty -= spd;
         }
         double smooth = 5.0;
         if (((Boolean)this.smoothing.get()).booleanValue()) {
             double lerpF = 1.0 - Math.pow(0.001, dt);
-            this.velocity.x = class_3532.method_16436((double)lerpF, (double)this.velocity.x, (double)(tx * smooth));
-            this.velocity.y = class_3532.method_16436((double)lerpF, (double)this.velocity.y, (double)(ty * smooth));
-            this.velocity.z = class_3532.method_16436((double)lerpF, (double)this.velocity.z, (double)(tz * smooth));
+            this.velocity.x = MathHelper.lerp((double)lerpF, (double)this.velocity.x, (double)(tx * smooth));
+            this.velocity.y = MathHelper.lerp((double)lerpF, (double)this.velocity.y, (double)(ty * smooth));
+            this.velocity.z = MathHelper.lerp((double)lerpF, (double)this.velocity.z, (double)(tz * smooth));
         } else {
             this.velocity.set(tx * smooth, ty * smooth, tz * smooth);
         }
@@ -150,23 +150,23 @@ extends Module {
     }
 
     public double getInterpolatedX(float td) {
-        return class_3532.method_16436((double)td, (double)this.prevPos.x, (double)this.currentPos.x);
+        return MathHelper.lerp((double)td, (double)this.prevPos.x, (double)this.currentPos.x);
     }
 
     public double getInterpolatedY(float td) {
-        return class_3532.method_16436((double)td, (double)this.prevPos.y, (double)this.currentPos.y);
+        return MathHelper.lerp((double)td, (double)this.prevPos.y, (double)this.currentPos.y);
     }
 
     public double getInterpolatedZ(float td) {
-        return class_3532.method_16436((double)td, (double)this.prevPos.z, (double)this.currentPos.z);
+        return MathHelper.lerp((double)td, (double)this.prevPos.z, (double)this.currentPos.z);
     }
 
     public float getInterpolatedYaw(float td) {
-        return class_3532.method_16439((float)td, (float)this.prevYaw, (float)this.yaw);
+        return MathHelper.lerp((float)td, (float)this.prevYaw, (float)this.yaw);
     }
 
     public float getInterpolatedPitch(float td) {
-        return class_3532.method_16439((float)td, (float)this.prevPitch, (float)this.pitch);
+        return MathHelper.lerp((float)td, (float)this.prevPitch, (float)this.pitch);
     }
 }
 

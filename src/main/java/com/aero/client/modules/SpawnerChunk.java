@@ -5,27 +5,26 @@ import java.awt.Color;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1923;
-import net.minecraft.class_2338;
-import net.minecraft.class_243;
-import net.minecraft.class_2561;
-import net.minecraft.class_2636;
-import net.minecraft.class_2818;
-import net.minecraft.class_370;
-import net.minecraft.class_374;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.text.Text;
+import net.minecraft.block.entity.MobSpawnerBlockEntity;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.client.toast.SystemToast;
+import net.minecraft.client.toast.ToastManager;
 public class SpawnerChunk
 extends Module {
     private final SettingGroup sgSpawners;
@@ -40,7 +39,7 @@ extends Module {
     private final Setting<SettingColor> spawnerChunkFillColor;
     private final Setting<Boolean> showSpawnerTracers;
     private final Setting<SettingColor> spawnerTracerColor;
-    private final Set<class_2338> foundSpawners;
+    private final Set<BlockPos> foundSpawners;
     private float hue;
 
     public SpawnerChunk() {
@@ -57,7 +56,7 @@ extends Module {
         this.spawnerChunkFillColor = this.sgSpawners.add((Setting)((ColorSetting.Builder)new ColorSetting.Builder().name("spawner-chunk-fill-color")).defaultValue(new SettingColor(255, 165, 0, 30)).build());
         this.showSpawnerTracers = this.sgTracers.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("show-spawner-tracers")).defaultValue(false)).build());
         this.spawnerTracerColor = this.sgTracers.add((Setting)((ColorSetting.Builder)new ColorSetting.Builder().name("spawner-tracer-color")).defaultValue(new SettingColor(255, 165, 0, 200)).build());
-        this.foundSpawners = new HashSet<class_2338>();
+        this.foundSpawners = new HashSet<BlockPos>();
         this.hue = 0.0f;
     }
 
@@ -71,25 +70,25 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         int range = 8;
-        class_1923 pc = this.mc.field_1724.method_31476();
+        ChunkPos pc = this.mc.player.getChunkPos();
         for (int dx = -range; dx <= range; ++dx) {
             for (int dz = -range; dz <= range; ++dz) {
-                class_2818 chunk = this.mc.field_1687.method_8497(pc.field_9181 + dx, pc.field_9180 + dz);
+                WorldChunk chunk = this.mc.world.getChunk(pc.x + dx, pc.z + dz);
                 if (chunk == null) continue;
-                for (Map.Entry entry : chunk.method_12214().entrySet()) {
-                    class_2338 pos;
-                    if (!(entry.getValue() instanceof class_2636) || this.foundSpawners.contains(pos = (class_2338)entry.getKey())) continue;
+                for (Map.Entry entry : chunk.getBlockEntities().entrySet()) {
+                    BlockPos pos;
+                    if (!(entry.getValue() instanceof MobSpawnerBlockEntity) || this.foundSpawners.contains(pos = (BlockPos)entry.getKey())) continue;
                     this.foundSpawners.add(pos);
-                    String msg = "Spawner at X" + pos.method_10263() + " Y" + pos.method_10264() + " Z" + pos.method_10260();
+                    String msg = "Spawner at X" + pos.getX() + " Y" + pos.getY() + " Z" + pos.getZ();
                     if (((Boolean)this.spawnerChatNotify.get()).booleanValue()) {
-                        this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a76[SpawnerChunk] \u00a7f" + msg)), false);
+                        this.mc.player.sendMessage((Text)Text.literal((String)("\u00a76[SpawnerChunk] \u00a7f" + msg)), false);
                     }
                     if (!((Boolean)this.spawnerToastNotify.get()).booleanValue()) continue;
-                    class_370.method_27024((class_374)this.mc.method_1566(), (class_370.class_9037)class_370.class_9037.field_47588, (class_2561)class_2561.method_43470((String)"Spawner Found"), (class_2561)class_2561.method_43470((String)msg));
+                    SystemToast.add((ToastManager)this.mc.getToastManager(), (SystemToast.Type)SystemToast.Type.PERIODIC_NOTIFICATION, (Text)Text.literal((String)"Spawner Found"), (Text)Text.literal((String)msg));
                 }
             }
         }
@@ -97,24 +96,24 @@ extends Module {
 
     @EventHandler
     private void onRender3D(Render3DEvent event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         this.hue = (this.hue + (float)((Double)this.spawnerRainbowSpeed.get() * 0.005)) % 1.0f;
         int rgb = Color.HSBtoRGB(this.hue, 1.0f, 1.0f);
         SettingColor rainbow = new SettingColor(rgb >> 16 & 0xFF, rgb >> 8 & 0xFF, rgb & 0xFF, ((Integer)this.spawnerRainbowAlpha.get()).intValue());
-        class_243 cam = this.mc.field_1724.method_5836(1.0f);
-        HashSet<class_1923> renderedChunks = new HashSet<class_1923>();
-        for (class_2338 pos : this.foundSpawners) {
-            class_1923 cp;
+        Vec3d cam = this.mc.player.getCameraPosVec(1.0f);
+        HashSet<ChunkPos> renderedChunks = new HashSet<ChunkPos>();
+        for (BlockPos pos : this.foundSpawners) {
+            ChunkPos cp;
             if (((Boolean)this.renderSpawnerBoxes.get()).booleanValue()) {
-                event.renderer.box((double)pos.method_10263(), (double)pos.method_10264(), (double)pos.method_10260(), (double)(pos.method_10263() + 1), (double)(pos.method_10264() + 1), (double)(pos.method_10260() + 1), (meteordevelopment.meteorclient.utils.render.color.Color)new SettingColor(0, 0, 0, 0), (meteordevelopment.meteorclient.utils.render.color.Color)rainbow, ShapeMode.Lines, 0);
+                event.renderer.box((double)pos.getX(), (double)pos.getY(), (double)pos.getZ(), (double)(pos.getX() + 1), (double)(pos.getY() + 1), (double)(pos.getZ() + 1), (com.aero.client.api.Color)new SettingColor(0, 0, 0, 0), (com.aero.client.api.Color)rainbow, ShapeMode.Lines, 0);
             }
             if (((Boolean)this.showSpawnerTracers.get()).booleanValue()) {
-                event.renderer.line(cam.field_1352, cam.field_1351, cam.field_1350, (double)pos.method_10263() + 0.5, (double)pos.method_10264() + 0.5, (double)pos.method_10260() + 0.5, (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerTracerColor.get());
+                event.renderer.line(cam.x, cam.y, cam.z, (double)pos.getX() + 0.5, (double)pos.getY() + 0.5, (double)pos.getZ() + 0.5, (com.aero.client.api.Color)this.spawnerTracerColor.get());
             }
-            if (!((Boolean)this.highlightSpawnerChunks.get()).booleanValue() || !renderedChunks.add(cp = new class_1923(pos))) continue;
-            event.renderer.box((double)(cp.field_9181 * 16), -64.0, (double)(cp.field_9180 * 16), (double)(cp.field_9181 * 16 + 16), 320.0, (double)(cp.field_9180 * 16 + 16), (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerChunkFillColor.get(), (meteordevelopment.meteorclient.utils.render.color.Color)this.spawnerChunkLineColor.get(), ShapeMode.Both, 0);
+            if (!((Boolean)this.highlightSpawnerChunks.get()).booleanValue() || !renderedChunks.add(cp = new ChunkPos(pos))) continue;
+            event.renderer.box((double)(cp.x * 16), -64.0, (double)(cp.z * 16), (double)(cp.x * 16 + 16), 320.0, (double)(cp.z * 16 + 16), (com.aero.client.api.Color)this.spawnerChunkFillColor.get(), (com.aero.client.api.Color)this.spawnerChunkLineColor.get(), ShapeMode.Both, 0);
         }
     }
 }

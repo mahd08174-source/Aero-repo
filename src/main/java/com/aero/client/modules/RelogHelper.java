@@ -1,17 +1,16 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.settings.StringSetting;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2561;
-
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.StringSetting;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.text.Text;
 public class RelogHelper
 extends Module {
     private final SettingGroup sgGeneral;
@@ -41,13 +40,13 @@ extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         boolean below;
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
-        boolean bl = below = this.mc.field_1724.method_23318() <= (Double)this.triggerY.get();
+        boolean bl = below = this.mc.player.getY() <= (Double)this.triggerY.get();
         if (!below) {
             if (this.wasBelow && ((Boolean)this.clearChat.get()).booleanValue()) {
-                this.mc.field_1705.method_1743().method_1808(false);
+                this.mc.inGameHud.getChatHud().clear(false);
             }
             this.wasBelow = false;
             this.tickCounter = 0;
@@ -58,7 +57,7 @@ extends Module {
             return;
         }
         this.tickCounter = 0;
-        this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a78[\u00a7c\u00a7lRelog\u00a78] \u00a7r\u00a7f" + (String)this.message.get())), false);
+        this.mc.player.sendMessage((Text)Text.literal((String)("\u00a78[\u00a7c\u00a7lRelog\u00a78] \u00a7r\u00a7f" + (String)this.message.get())), false);
     }
 }
 

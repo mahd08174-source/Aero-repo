@@ -6,25 +6,25 @@ import com.aero.client.spotify.SpotifyState;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
-import meteordevelopment.meteorclient.events.render.Render2DEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1011;
-import net.minecraft.class_1043;
-import net.minecraft.class_1044;
-import net.minecraft.class_2487;
-import net.minecraft.class_2960;
-import net.minecraft.class_332;
-import net.minecraft.class_3532;
+import com.aero.client.api.Render2DEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.util.Identifier;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
 public class SpotifyHUD
 extends Module {
-    private static final class_2960 ART_ID = class_2960.method_60655((String)"p3nis", (String)"spotify_art");
+    private static final Identifier ART_ID = Identifier.of((String)"p3nis", (String)"spotify_art");
     private static final int C_BG = -267580147;
     private static final int C_BG2 = 0x8FFFFFF;
     private static final int C_BORDER = 0x20FFFFFF;
@@ -50,7 +50,7 @@ extends Module {
     private boolean lastMouseDown;
     public final Setting<Boolean> hideWhenIdle;
     private SpotifyService service;
-    private class_1043 artTex;
+    private NativeImageBackedTexture artTex;
     private int loadedArtVer;
     private String lastTitle;
     private long songChangeTime;
@@ -91,27 +91,27 @@ extends Module {
         this.destroyArt();
     }
 
-    public class_2487 toTag() {
-        class_2487 tag = super.toTag();
+    public NbtCompound toTag() {
+        NbtCompound tag = super.toTag();
         if (tag == null) {
-            tag = new class_2487();
+            tag = new NbtCompound();
         }
-        tag.method_10569("panelX", this.panelX);
-        tag.method_10569("panelY", this.panelY);
+        tag.putInt("panelX", this.panelX);
+        tag.putInt("panelY", this.panelY);
         return tag;
     }
 
-    public Module fromTag(class_2487 tag) {
+    public Module fromTag(NbtCompound tag) {
         super.fromTag(tag);
-        this.panelX = tag.method_10550("panelX").orElse(this.panelX);
-        this.panelY = tag.method_10550("panelY").orElse(this.panelY);
+        this.panelX = tag.getInt("panelX").orElse(this.panelX);
+        this.panelY = tag.getInt("panelY").orElse(this.panelY);
         return this;
     }
 
     private void destroyArt() {
         if (this.artTex != null) {
             try {
-                this.mc.method_1531().method_4615(ART_ID);
+                this.mc.getTextureManager().destroyTexture(ART_ID);
             }
             catch (Exception exception) {
                 // empty catch block
@@ -130,11 +130,11 @@ extends Module {
             if (bytes.length < 200) {
                 return;
             }
-            class_1011 img = class_1011.method_4309((InputStream)new ByteArrayInputStream(bytes));
+            NativeImage img = NativeImage.read((InputStream)new ByteArrayInputStream(bytes));
             this.destroyArt();
-            this.artTex = new class_1043(() -> "p3nis/spotify_art", img);
-            this.artTex.method_4524();
-            this.mc.method_1531().method_4616(ART_ID, (class_1044)this.artTex);
+            this.artTex = new NativeImageBackedTexture(() -> "p3nis/spotify_art", img);
+            this.artTex.upload();
+            this.mc.getTextureManager().registerTexture(ART_ID, (AbstractTexture)this.artTex);
             this.loadedArtVer = ver;
         }
         catch (Exception exception) {
@@ -145,7 +145,7 @@ extends Module {
     @EventHandler
     private void onRender2D(Render2DEvent event) {
         String curTitle;
-        if (this.mc.field_1724 == null || this.service == null) {
+        if (this.mc.player == null || this.service == null) {
             return;
         }
         SpotifyState st = this.service.state();
@@ -164,22 +164,22 @@ extends Module {
         }
         float sc = ((Double)this.scale.get()).floatValue();
         long now = System.currentTimeMillis();
-        int sw = this.mc.method_22683().method_4486();
-        int sh = this.mc.method_22683().method_4502();
+        int sw = this.mc.getWindow().getScaledWidth();
+        int sh = this.mc.getWindow().getScaledHeight();
         int pw = (int)(310.0f * sc);
         int ph = (int)(104.0f * sc);
-        this.panelX = class_3532.method_15340((int)this.panelX, (int)0, (int)Math.max(0, sw - pw));
-        this.panelY = class_3532.method_15340((int)this.panelY, (int)0, (int)Math.max(0, sh - ph));
+        this.panelX = MathHelper.clamp((int)this.panelX, (int)0, (int)Math.max(0, sw - pw));
+        this.panelY = MathHelper.clamp((int)this.panelY, (int)0, (int)Math.max(0, sh - ph));
         this.handleDrag(pw, ph);
         int px = this.panelX;
         int py = this.panelY;
         float animT = this.songChangeTime > 0L ? Math.min(1.0f, (float)(now - this.songChangeTime) / 400.0f) : 1.0f;
         float slideOff = (1.0f - SpotifyHUD.easeOut(animT)) * -22.0f;
         int fadeA = (int)(SpotifyHUD.easeOut(animT) * 255.0f);
-        class_332 ctx = event.drawContext;
-        ctx.method_51448().pushMatrix();
-        ctx.method_51448().translate((float)px + slideOff, (float)py);
-        ctx.method_51448().scale(sc, sc);
+        DrawContext ctx = event.drawContext;
+        ctx.getMatrices().pushMatrix();
+        ctx.getMatrices().translate((float)px + slideOff, (float)py);
+        ctx.getMatrices().scale(sc, sc);
         SpotifyHUD.fillR(ctx, 4, 5, 310, 104, 16, SpotifyHUD.alphaMul(0x55000000, fadeA));
         SpotifyHUD.fillR(ctx, 3, 4, 310, 104, 16, SpotifyHUD.alphaMul(0x35000000, fadeA));
         SpotifyHUD.fillR(ctx, 2, 3, 310, 104, 16, SpotifyHUD.alphaMul(0x20000000, fadeA));
@@ -194,8 +194,8 @@ extends Module {
         SpotifyHUD.fillR(ctx, 1, 1, 308, 102, 15, SpotifyHUD.alphaMul(-267580147, fadeA));
         SpotifyHUD.fillR(ctx, 2, 2, 306, 5, 14, SpotifyHUD.alphaMul(0x9FFFFFF, fadeA));
         SpotifyHUD.fillR(ctx, 0, 16, 3, 72, 0, SpotifyHUD.alphaMul(-14829228, fadeA));
-        ctx.method_25294(2, 15, 3, 16, SpotifyHUD.alphaMul(-14829228, fadeA));
-        ctx.method_25294(2, 88, 3, 89, SpotifyHUD.alphaMul(-14829228, fadeA));
+        ctx.fill(2, 15, 3, 16, SpotifyHUD.alphaMul(-14829228, fadeA));
+        ctx.fill(2, 88, 3, 89, SpotifyHUD.alphaMul(-14829228, fadeA));
         int artX = 17;
         int artY = 14;
         SpotifyHUD.fillR(ctx, artX + 2, artY + 3, 76, 76, 6, SpotifyHUD.alphaMul(0x70000000, fadeA));
@@ -204,21 +204,21 @@ extends Module {
         SpotifyHUD.fillR(ctx, artX - 1, artY - 1, 78, 78, 7, SpotifyHUD.alphaMul(371046740, fadeA));
         SpotifyHUD.fillR(ctx, artX, artY, 76, 76, 6, SpotifyHUD.alphaMul(-15658735, fadeA));
         if (this.artTex != null && this.loadedArtVer >= 0) {
-            ctx.method_70845(ART_ID, artX, artY, artX + 76, artY + 76, 0.0f, 0.0f, 1.0f, 1.0f);
+            ctx.drawTexturedQuad(ART_ID, artX, artY, artX + 76, artY + 76, 0.0f, 0.0f, 1.0f, 1.0f);
             SpotifyHUD.maskCorners(ctx, artX, artY, 76, 76, 6, SpotifyHUD.alphaMul(-267580147, fadeA));
         } else {
             int noteX = artX + 38 - 4;
             int noteY = artY + 38 - 4;
-            ctx.method_51433(this.mc.field_1772, "\u266b", noteX, noteY, SpotifyHUD.alphaMul(0x25FFFFFF, fadeA), false);
+            ctx.drawText(this.mc.textRenderer, "\u266b", noteX, noteY, SpotifyHUD.alphaMul(0x25FFFFFF, fadeA), false);
         }
         int tx = artX + 76 + 14;
         int avail = 310 - tx - 14;
         String header = st.active() && st.playing() ? "\u25b6  NOW PLAYING" : (st.active() ? "\u23f8  PAUSED" : "\u2014  IDLE");
         int hcol = st.active() && st.playing() ? SpotifyHUD.alphaMul(-14829228, fadeA) : SpotifyHUD.alphaMul(-12566464, fadeA);
-        ctx.method_51433(this.mc.field_1772, header, tx, artY, hcol, false);
+        ctx.drawText(this.mc.textRenderer, header, tx, artY, hcol, false);
         String title = st.active() ? st.title() : "Nothing playing";
         String artist = st.active() ? st.artist() : "";
-        int titleW = this.mc.field_1772.method_1727(title);
+        int titleW = this.mc.textRenderer.getWidth(title);
         if (titleW > avail && st.active()) {
             long elapsed;
             if (!title.equals(this.scrollTitle)) {
@@ -233,18 +233,18 @@ extends Module {
             int sy1 = (int)((float)(py + artY + 12) * sc);
             int sx2 = (int)(((float)px + slideOff + (float)tx + (float)avail) * sc);
             int sy2 = sy1 + (int)(10.0f * sc);
-            ctx.method_44379(sx1, sy1, sx2, sy2);
-            ctx.method_51433(this.mc.field_1772, title, tx - (int)this.scrollX, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
+            ctx.enableScissor(sx1, sy1, sx2, sy2);
+            ctx.drawText(this.mc.textRenderer, title, tx - (int)this.scrollX, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
             if (this.scrollX > 0.0f) {
-                ctx.method_51433(this.mc.field_1772, title, tx - (int)this.scrollX + titleW + 20, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
+                ctx.drawText(this.mc.textRenderer, title, tx - (int)this.scrollX + titleW + 20, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
             }
-            ctx.method_44380();
+            ctx.disableScissor();
         } else {
-            ctx.method_51433(this.mc.field_1772, this.clip(title, avail), tx, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
+            ctx.drawText(this.mc.textRenderer, this.clip(title, avail), tx, artY + 12, SpotifyHUD.alphaMul(-1, fadeA), true);
         }
-        ctx.method_51433(this.mc.field_1772, this.clip(artist, avail), tx, artY + 24, SpotifyHUD.alphaMul(-6645094, fadeA), false);
+        ctx.drawText(this.mc.textRenderer, this.clip(artist, avail), tx, artY + 24, SpotifyHUD.alphaMul(-6645094, fadeA), false);
         if (!st.active()) {
-            ctx.method_51448().popMatrix();
+            ctx.getMatrices().popMatrix();
             return;
         }
         long posMs = st.livePosMs();
@@ -257,25 +257,25 @@ extends Module {
             SpotifyHUD.drawPill(ctx, tx, barY, filled, barH, SpotifyHUD.alphaMul(-14829228, fadeA));
             int dx = tx + filled - 3;
             int dy = barY - 3;
-            ctx.method_25294(dx, dy + 1, dx + 6, dy + 2, SpotifyHUD.alphaMul(1344125268, fadeA));
-            ctx.method_25294(dx + 1, dy, dx + 5, dy + 7, SpotifyHUD.alphaMul(1344125268, fadeA));
-            ctx.method_25294(dx + 1, dy + 1, dx + 5, dy + 6, SpotifyHUD.alphaMul(-1877100204, fadeA));
-            ctx.method_25294(dx + 1, dy + 2, dx + 5, dy + 5, SpotifyHUD.alphaMul(-1, fadeA));
-            ctx.method_25294(dx + 2, dy + 1, dx + 4, dy + 6, SpotifyHUD.alphaMul(-1, fadeA));
+            ctx.fill(dx, dy + 1, dx + 6, dy + 2, SpotifyHUD.alphaMul(1344125268, fadeA));
+            ctx.fill(dx + 1, dy, dx + 5, dy + 7, SpotifyHUD.alphaMul(1344125268, fadeA));
+            ctx.fill(dx + 1, dy + 1, dx + 5, dy + 6, SpotifyHUD.alphaMul(-1877100204, fadeA));
+            ctx.fill(dx + 1, dy + 2, dx + 5, dy + 5, SpotifyHUD.alphaMul(-1, fadeA));
+            ctx.fill(dx + 2, dy + 1, dx + 4, dy + 6, SpotifyHUD.alphaMul(-1, fadeA));
         }
         int timeY = barY + barH + 4;
         String posStr = SpotifyHUD.fmtMs(posMs);
         String durStr = st.durMs() > 0L ? SpotifyHUD.fmtMs(st.durMs()) : "--:--";
-        ctx.method_51433(this.mc.field_1772, posStr, tx, timeY, SpotifyHUD.alphaMul(-12566464, fadeA), false);
-        ctx.method_51433(this.mc.field_1772, durStr, tx + avail - this.mc.field_1772.method_1727(durStr), timeY, SpotifyHUD.alphaMul(-12566464, fadeA), false);
-        ctx.method_51448().popMatrix();
+        ctx.drawText(this.mc.textRenderer, posStr, tx, timeY, SpotifyHUD.alphaMul(-12566464, fadeA), false);
+        ctx.drawText(this.mc.textRenderer, durStr, tx + avail - this.mc.textRenderer.getWidth(durStr), timeY, SpotifyHUD.alphaMul(-12566464, fadeA), false);
+        ctx.getMatrices().popMatrix();
     }
 
     private void handleDrag(int pw, int ph) {
         boolean over;
-        long window = this.mc.method_22683().method_4490();
-        double mx = this.mc.field_1729.method_1603() * (double)this.mc.method_22683().method_4486() / (double)this.mc.method_22683().method_4480();
-        double my = this.mc.field_1729.method_1604() * (double)this.mc.method_22683().method_4502() / (double)this.mc.method_22683().method_4507();
+        long window = this.mc.getWindow().getHandle();
+        double mx = this.mc.mouse.getX() * (double)this.mc.getWindow().getScaledWidth() / (double)this.mc.getWindow().getWidth();
+        double my = this.mc.mouse.getY() * (double)this.mc.getWindow().getScaledHeight() / (double)this.mc.getWindow().getHeight();
         boolean mouseDown = GLFW.glfwGetMouseButton((long)window, (int)0) == 1;
         boolean bl = over = mx >= (double)this.panelX && mx <= (double)(this.panelX + pw) && my >= (double)this.panelY && my <= (double)(this.panelY + ph);
         if (mouseDown && !this.lastMouseDown && over) {
@@ -303,7 +303,7 @@ extends Module {
         return color & 0xFFFFFF | newA << 24;
     }
 
-    private static void drawPill(class_332 ctx, int x, int y, int w, int h, int color) {
+    private static void drawPill(DrawContext ctx, int x, int y, int w, int h, int color) {
         int inset;
         int i;
         if (w <= 0) {
@@ -311,55 +311,55 @@ extends Module {
         }
         int r2 = h / 2;
         if (w <= r2 * 2) {
-            ctx.method_25294(x, y, x + w, y + h, color);
+            ctx.fill(x, y, x + w, y + h, color);
             return;
         }
-        ctx.method_25294(x + r2, y, x + w - r2, y + h, color);
+        ctx.fill(x + r2, y, x + w - r2, y + h, color);
         for (i = 0; i < r2; ++i) {
             inset = r2 - (int)Math.sqrt(Math.max(0.0, (double)(r2 * r2) - (double)((r2 - 1 - i) * (r2 - 1 - i))));
-            ctx.method_25294(x + inset, y + i, x + r2, y + i + 1, color);
-            ctx.method_25294(x + inset, y + h - 1 - i, x + r2, y + h - i, color);
+            ctx.fill(x + inset, y + i, x + r2, y + i + 1, color);
+            ctx.fill(x + inset, y + h - 1 - i, x + r2, y + h - i, color);
         }
         for (i = 0; i < r2; ++i) {
             inset = r2 - (int)Math.sqrt(Math.max(0.0, (double)(r2 * r2) - (double)((r2 - 1 - i) * (r2 - 1 - i))));
-            ctx.method_25294(x + w - r2, y + i, x + w - inset, y + i + 1, color);
-            ctx.method_25294(x + w - r2, y + h - 1 - i, x + w - inset, y + h - i, color);
+            ctx.fill(x + w - r2, y + i, x + w - inset, y + i + 1, color);
+            ctx.fill(x + w - r2, y + h - 1 - i, x + w - inset, y + h - i, color);
         }
     }
 
-    private static void fillR(class_332 ctx, int x, int y, int w, int h, int r, int color) {
+    private static void fillR(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) {
             return;
         }
         if ((r = Math.min(r, Math.min(w, h) / 2)) <= 0) {
-            ctx.method_25294(x, y, x + w, y + h, color);
+            ctx.fill(x, y, x + w, y + h, color);
             return;
         }
-        ctx.method_25294(x + r, y, x + w - r, y + h, color);
-        ctx.method_25294(x, y + r, x + r, y + h - r, color);
-        ctx.method_25294(x + w - r, y + r, x + w, y + h - r, color);
+        ctx.fill(x + r, y, x + w - r, y + h, color);
+        ctx.fill(x, y + r, x + r, y + h - r, color);
+        ctx.fill(x + w - r, y + r, x + w, y + h - r, color);
         SpotifyHUD.cornerStep(ctx, x, y, w, h, r, color);
     }
 
-    private static void cornerStep(class_332 ctx, int x, int y, int w, int h, int r, int c) {
+    private static void cornerStep(DrawContext ctx, int x, int y, int w, int h, int r, int c) {
         for (int i = 0; i < r; ++i) {
             double d = Math.sqrt(Math.max(0.0, (double)(r * r) - (double)((r - 1 - i) * (r - 1 - i))));
             int in = r - (int)d;
-            ctx.method_25294(x + in, y + i, x + r, y + i + 1, c);
-            ctx.method_25294(x + w - r, y + i, x + w - in, y + i + 1, c);
-            ctx.method_25294(x + in, y + h - i - 1, x + r, y + h - i, c);
-            ctx.method_25294(x + w - r, y + h - i - 1, x + w - in, y + h - i, c);
+            ctx.fill(x + in, y + i, x + r, y + i + 1, c);
+            ctx.fill(x + w - r, y + i, x + w - in, y + i + 1, c);
+            ctx.fill(x + in, y + h - i - 1, x + r, y + h - i, c);
+            ctx.fill(x + w - r, y + h - i - 1, x + w - in, y + h - i, c);
         }
     }
 
-    private static void maskCorners(class_332 ctx, int x, int y, int w, int h, int r, int bg) {
+    private static void maskCorners(DrawContext ctx, int x, int y, int w, int h, int r, int bg) {
         for (int i = 0; i < r; ++i) {
             double d = Math.sqrt(Math.max(0.0, (double)(r * r) - (double)((r - 1 - i) * (r - 1 - i))));
             int in = r - (int)d;
-            ctx.method_25294(x, y + i, x + in, y + i + 1, bg);
-            ctx.method_25294(x + w - in, y + i, x + w, y + i + 1, bg);
-            ctx.method_25294(x, y + h - i - 1, x + in, y + h - i, bg);
-            ctx.method_25294(x + w - in, y + h - i - 1, x + w, y + h - i, bg);
+            ctx.fill(x, y + i, x + in, y + i + 1, bg);
+            ctx.fill(x + w - in, y + i, x + w, y + i + 1, bg);
+            ctx.fill(x, y + h - i - 1, x + in, y + h - i, bg);
+            ctx.fill(x + w - in, y + h - i - 1, x + w, y + h - i, bg);
         }
     }
 
@@ -367,13 +367,13 @@ extends Module {
         if (text == null || text.isEmpty()) {
             return "";
         }
-        if (this.mc.field_1772.method_1727(text) <= maxPx) {
+        if (this.mc.textRenderer.getWidth(text) <= maxPx) {
             return text;
         }
-        int dw = this.mc.field_1772.method_1727("...");
+        int dw = this.mc.textRenderer.getWidth("...");
         StringBuilder sb = new StringBuilder();
         for (char c : text.toCharArray()) {
-            if (this.mc.field_1772.method_1727(String.valueOf(sb) + String.valueOf(c)) > maxPx - dw) break;
+            if (this.mc.textRenderer.getWidth(String.valueOf(sb) + String.valueOf(c)) > maxPx - dw) break;
             sb.append(c);
         }
         return String.valueOf(sb) + "...";

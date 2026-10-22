@@ -10,23 +10,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import meteordevelopment.meteorclient.events.game.GameLeftEvent;
-import meteordevelopment.meteorclient.events.render.Render2DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.settings.StringSetting;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2487;
-import net.minecraft.class_2561;
-import net.minecraft.class_332;
-import net.minecraft.class_3532;
+import com.aero.client.api.GameLeftEvent;
+import com.aero.client.api.Render2DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.StringSetting;
+import com.aero.client.api.Module;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
 public class StaffList
@@ -111,27 +111,27 @@ extends Module {
         this.animEntries.clear();
     }
 
-    public class_2487 toTag() {
-        class_2487 tag = super.toTag();
+    public NbtCompound toTag() {
+        NbtCompound tag = super.toTag();
         if (tag == null) {
-            tag = new class_2487();
+            tag = new NbtCompound();
         }
-        tag.method_10569("panelX", this.panelX);
-        tag.method_10569("panelY", this.panelY);
+        tag.putInt("panelX", this.panelX);
+        tag.putInt("panelY", this.panelY);
         return tag;
     }
 
-    public Module fromTag(class_2487 tag) {
+    public Module fromTag(NbtCompound tag) {
         super.fromTag(tag);
-        this.panelX = tag.method_10550("panelX").orElse(this.panelX);
-        this.panelY = tag.method_10550("panelY").orElse(this.panelY);
+        this.panelX = tag.getInt("panelX").orElse(this.panelX);
+        this.panelY = tag.getInt("panelY").orElse(this.panelY);
         return this;
     }
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
         AnimEntry ae;
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
         this.tracker.tick();
@@ -165,9 +165,9 @@ extends Module {
     }
 
     public void onStaffAppear(StaffEntry e) {
-        if (((Boolean)this.chatAlerts.get()).booleanValue() && this.mc.field_1724 != null) {
+        if (((Boolean)this.chatAlerts.get()).booleanValue() && this.mc.player != null) {
             String rank = e.rankLabel().isEmpty() ? "Staff" : e.rankLabel();
-            this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a7c[StaffList] \u00a7f" + e.name() + " \u00a77(" + rank + ") \u00a7fjoined")), false);
+            this.mc.player.sendMessage((Text)Text.literal((String)("\u00a7c[StaffList] \u00a7f" + e.name() + " \u00a77(" + rank + ") \u00a7fjoined")), false);
         }
     }
 
@@ -190,7 +190,7 @@ extends Module {
     @EventHandler
     private void onRender2D(Render2DEvent event) {
         float badgeT;
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
         ArrayList<AnimEntry> visible = new ArrayList<AnimEntry>();
@@ -221,10 +221,10 @@ extends Module {
         int visRows = Math.min(this.animEntries.size(), (Integer)this.maxRows.get());
         int panelH = (int)((float)(26 + visRows * 22 + 12) * sc);
         int panelW = (int)(224.0f * sc);
-        int sw2 = this.mc.method_22683().method_4486();
-        int sh2 = this.mc.method_22683().method_4502();
-        this.panelX = class_3532.method_15340((int)this.panelX, (int)0, (int)Math.max(0, sw2 - panelW));
-        this.panelY = class_3532.method_15340((int)this.panelY, (int)0, (int)Math.max(0, sh2 - panelH));
+        int sw2 = this.mc.getWindow().getScaledWidth();
+        int sh2 = this.mc.getWindow().getScaledHeight();
+        this.panelX = MathHelper.clamp((int)this.panelX, (int)0, (int)Math.max(0, sw2 - panelW));
+        this.panelY = MathHelper.clamp((int)this.panelY, (int)0, (int)Math.max(0, sh2 - panelH));
         this.handleDrag(panelW, panelH);
         int px = this.panelX;
         int py = this.panelY;
@@ -252,49 +252,49 @@ extends Module {
         if (cardH < 38) {
             cardH = 38;
         }
-        class_332 class_3322 = event.drawContext;
-        class_3322.method_51448().pushMatrix();
-        class_3322.method_51448().translate((float)px + widgetSl, (float)py);
-        class_3322.method_51448().scale(sc, sc);
-        StaffList.fillR(class_3322, 5, 6, 224, cardH, 16, StaffList.alphaMul(0x55000000, widgetA));
-        StaffList.fillR(class_3322, 3, 4, 224, cardH, 16, StaffList.alphaMul(0x30000000, widgetA));
-        StaffList.fillR(class_3322, 1, 2, 224, cardH, 16, StaffList.alphaMul(0x15000000, widgetA));
+        DrawContext ServerConfigException = event.drawContext;
+        ServerConfigException.getMatrices().pushMatrix();
+        ServerConfigException.getMatrices().translate((float)px + widgetSl, (float)py);
+        ServerConfigException.getMatrices().scale(sc, sc);
+        StaffList.fillR(ServerConfigException, 5, 6, 224, cardH, 16, StaffList.alphaMul(0x55000000, widgetA));
+        StaffList.fillR(ServerConfigException, 3, 4, 224, cardH, 16, StaffList.alphaMul(0x30000000, widgetA));
+        StaffList.fillR(ServerConfigException, 1, 2, 224, cardH, 16, StaffList.alphaMul(0x15000000, widgetA));
         if (online > 0) {
-            StaffList.fillR(class_3322, -4, -4, 232, cardH + 8, 20, StaffList.alphaMul(0x4000000 | accentRGB, widgetA));
-            StaffList.fillR(class_3322, -3, -3, 230, cardH + 6, 19, StaffList.alphaMul(0xA000000 | accentRGB, widgetA));
-            StaffList.fillR(class_3322, -2, -2, 228, cardH + 4, 18, StaffList.alphaMul(0x15000000 | accentRGB, widgetA));
-            StaffList.fillR(class_3322, -1, -1, 226, cardH + 2, 17, StaffList.alphaMul(0x20000000 | accentRGB, widgetA));
+            StaffList.fillR(ServerConfigException, -4, -4, 232, cardH + 8, 20, StaffList.alphaMul(0x4000000 | accentRGB, widgetA));
+            StaffList.fillR(ServerConfigException, -3, -3, 230, cardH + 6, 19, StaffList.alphaMul(0xA000000 | accentRGB, widgetA));
+            StaffList.fillR(ServerConfigException, -2, -2, 228, cardH + 4, 18, StaffList.alphaMul(0x15000000 | accentRGB, widgetA));
+            StaffList.fillR(ServerConfigException, -1, -1, 226, cardH + 2, 17, StaffList.alphaMul(0x20000000 | accentRGB, widgetA));
         }
-        StaffList.fillR(class_3322, 0, 0, 224, cardH, 16, StaffList.alphaMul(-267580147, widgetA));
+        StaffList.fillR(ServerConfigException, 0, 0, 224, cardH, 16, StaffList.alphaMul(-267580147, widgetA));
         int gradH = Math.min(cardH / 2, 30);
-        StaffList.fillR(class_3322, 1, 1, 222, gradH, 15, StaffList.alphaMul(0x6FFFFFF, widgetA));
-        StaffList.fillR(class_3322, 0, 0, 224, cardH, 16, StaffList.alphaMul(0x1AFFFFFF, widgetA));
-        StaffList.fillR(class_3322, 1, 1, 222, cardH - 2, 15, StaffList.alphaMul(-267580147, widgetA));
-        StaffList.fillR(class_3322, 2, 2, 220, 4, 14, StaffList.alphaMul(0x8FFFFFF, widgetA));
+        StaffList.fillR(ServerConfigException, 1, 1, 222, gradH, 15, StaffList.alphaMul(0x6FFFFFF, widgetA));
+        StaffList.fillR(ServerConfigException, 0, 0, 224, cardH, 16, StaffList.alphaMul(0x1AFFFFFF, widgetA));
+        StaffList.fillR(ServerConfigException, 1, 1, 222, cardH - 2, 15, StaffList.alphaMul(-267580147, widgetA));
+        StaffList.fillR(ServerConfigException, 2, 2, 220, 4, 14, StaffList.alphaMul(0x8FFFFFF, widgetA));
         int stripeColor = StaffList.alphaMul(0xFF000000 | accentRGB, widgetA);
-        StaffList.fillR(class_3322, 0, 16, 3, cardH - 32, 0, stripeColor);
-        class_3322.method_25294(2, 15, 3, 16, stripeColor);
-        class_3322.method_25294(2, cardH - 16, 3, cardH - 16 + 1, stripeColor);
+        StaffList.fillR(ServerConfigException, 0, 16, 3, cardH - 32, 0, stripeColor);
+        ServerConfigException.fill(2, 15, 3, 16, stripeColor);
+        ServerConfigException.fill(2, cardH - 16, 3, cardH - 16 + 1, stripeColor);
         int hdrY = 7;
-        class_3322.method_51433(this.mc.field_1772, "STAFF ONLINE", 12, hdrY, StaffList.alphaMul(-1, widgetA), false);
+        ServerConfigException.drawText(this.mc.textRenderer, "STAFF ONLINE", 12, hdrY, StaffList.alphaMul(-1, widgetA), false);
         Object badgeStr = online < 10 ? "0" + online : String.valueOf(online);
-        int bw = this.mc.field_1772.method_1727((String)badgeStr) + 10;
+        int bw = this.mc.textRenderer.getWidth((String)badgeStr) + 10;
         int bx = 212 - bw;
         int by = hdrY - 1;
         int bh = 13;
-        class_3322.method_51448().pushMatrix();
+        ServerConfigException.getMatrices().pushMatrix();
         float bcx = (float)bx + (float)bw / 2.0f;
         float bcy = (float)by + (float)bh / 2.0f;
-        class_3322.method_51448().translate(bcx, bcy);
-        class_3322.method_51448().scale(badgeScale, badgeScale);
-        class_3322.method_51448().translate(-bcx, -bcy);
+        ServerConfigException.getMatrices().translate(bcx, bcy);
+        ServerConfigException.getMatrices().scale(badgeScale, badgeScale);
+        ServerConfigException.getMatrices().translate(-bcx, -bcy);
         int numCol = online > 0 ? StaffList.alphaMul(0xFF000000 | accentRGB, widgetA) : StaffList.alphaMul(-12961222, widgetA);
-        class_3322.method_51433(this.mc.field_1772, (String)badgeStr, bx + 5, by + 2, numCol, false);
-        class_3322.method_51448().popMatrix();
-        class_3322.method_25294(12, 26, 212, 27, StaffList.alphaMul(0x18FFFFFF, widgetA));
+        ServerConfigException.drawText(this.mc.textRenderer, (String)badgeStr, bx + 5, by + 2, numCol, false);
+        ServerConfigException.getMatrices().popMatrix();
+        ServerConfigException.fill(12, 26, 212, 27, StaffList.alphaMul(0x18FFFFFF, widgetA));
         if (visible.isEmpty()) {
-            class_3322.method_51433(this.mc.field_1772, "No staff detected", 26, 34, StaffList.alphaMul(-12961222, widgetA), false);
-            class_3322.method_51448().popMatrix();
+            ServerConfigException.drawText(this.mc.textRenderer, "No staff detected", 26, 34, StaffList.alphaMul(-12961222, widgetA), false);
+            ServerConfigException.getMatrices().popMatrix();
             return;
         }
         int rowY = 32;
@@ -306,14 +306,14 @@ extends Module {
             int rowAlpha = Math.min(widgetA, animEntry.alpha());
             float slideY = animEntry.slideY();
             boolean pinned = !animEntry.leaving() && highlights.contains(animEntry.entry.name().toLowerCase(Locale.ROOT));
-            class_3322.method_51448().pushMatrix();
-            class_3322.method_51448().translate(0.0f, slideY);
+            ServerConfigException.getMatrices().pushMatrix();
+            ServerConfigException.getMatrices().translate(0.0f, slideY);
             if (!animEntry.leaving() && rh == 22) {
                 if (pinned) {
-                    StaffList.fillR(class_3322, 12, rowY, 200, rh - 2, 4, StaffList.alphaMul(0x28000000 | accentRGB, rowAlpha));
-                    class_3322.method_25294(12, rowY, 14, rowY + rh - 2, StaffList.alphaMul(0xFF000000 | accentRGB, rowAlpha));
+                    StaffList.fillR(ServerConfigException, 12, rowY, 200, rh - 2, 4, StaffList.alphaMul(0x28000000 | accentRGB, rowAlpha));
+                    ServerConfigException.fill(12, rowY, 14, rowY + rh - 2, StaffList.alphaMul(0xFF000000 | accentRGB, rowAlpha));
                 } else {
-                    StaffList.fillR(class_3322, 12, rowY, 200, rh - 2, 4, StaffList.alphaMul(0xCFFFFFF, rowAlpha));
+                    StaffList.fillR(ServerConfigException, 12, rowY, 200, rh - 2, 4, StaffList.alphaMul(0xCFFFFFF, rowAlpha));
                 }
             }
             int midY = rowY + rh / 2;
@@ -331,47 +331,47 @@ extends Module {
                 symbol = "\u2605";
                 symColor = 0xFF000000 | accentRGB;
             }
-            class_3322.method_51433(this.mc.field_1772, symbol, iconX, iconY, StaffList.alphaMul(symColor, rowAlpha), false);
-            int dotX = iconX + this.mc.field_1772.method_1727("\u2605") + 5;
+            ServerConfigException.drawText(this.mc.textRenderer, symbol, iconX, iconY, StaffList.alphaMul(symColor, rowAlpha), false);
+            int dotX = iconX + this.mc.textRenderer.getWidth("\u2605") + 5;
             int dotY = midY - 2;
             boolean vanished = animEntry.entry.vanished();
             if (!vanished) {
                 float pulse = animEntry.dotPulse();
                 int glowA1 = (int)(pulse * 60.0f);
                 int glowA2 = (int)(pulse * 100.0f);
-                class_3322.method_25294(dotX - 2, dotY - 2, dotX + 6, dotY + 6, StaffList.alphaMul(4431943, Math.min(rowAlpha, glowA1)));
-                class_3322.method_25294(dotX - 1, dotY - 1, dotX + 5, dotY + 5, StaffList.alphaMul(4431943, Math.min(rowAlpha, glowA2)));
-                class_3322.method_25294(dotX, dotY, dotX + 4, dotY + 4, StaffList.alphaMul(-12345273, rowAlpha));
+                ServerConfigException.fill(dotX - 2, dotY - 2, dotX + 6, dotY + 6, StaffList.alphaMul(4431943, Math.min(rowAlpha, glowA1)));
+                ServerConfigException.fill(dotX - 1, dotY - 1, dotX + 5, dotY + 5, StaffList.alphaMul(4431943, Math.min(rowAlpha, glowA2)));
+                ServerConfigException.fill(dotX, dotY, dotX + 4, dotY + 4, StaffList.alphaMul(-12345273, rowAlpha));
             } else {
-                class_3322.method_25294(dotX, dotY, dotX + 4, dotY + 4, StaffList.alphaMul(-10395295, rowAlpha));
+                ServerConfigException.fill(dotX, dotY, dotX + 4, dotY + 4, StaffList.alphaMul(-10395295, rowAlpha));
             }
             int rightX = 212;
             if (((Boolean)this.showPing.get()).booleanValue() && rh == 22) {
                 int barsX = rightX - 14;
-                StaffList.drawSignalBars(class_3322, barsX, rowY + rh / 2 - 4, animEntry.entry.latency(), rowAlpha);
+                StaffList.drawSignalBars(ServerConfigException, barsX, rowY + rh / 2 - 4, animEntry.entry.latency(), rowAlpha);
                 rightX = barsX - 4;
             }
             int nameX = dotX + 8;
             int nameAvail = rightX - nameX;
             if (((Boolean)this.showRank.get()).booleanValue() && !animEntry.entry.rankLabel().isEmpty()) {
                 String rank2 = animEntry.entry.rankLabel();
-                int rw2 = this.mc.field_1772.method_1727(rank2) + 6;
+                int rw2 = this.mc.textRenderer.getWidth(rank2) + 6;
                 nameAvail -= rw2 + 3;
                 int rx2 = rightX - rw2;
                 if (!((Boolean)this.showPing.get()).booleanValue() && rh == 22) {
-                    StaffList.fillR(class_3322, rx2, rowY + 4, rw2, 11, 3, StaffList.alphaMul(StaffList.rankColor(rank2), rowAlpha));
-                    class_3322.method_51433(this.mc.field_1772, rank2, rx2 + 3, rowY + 5, StaffList.alphaMul(-1, rowAlpha), false);
+                    StaffList.fillR(ServerConfigException, rx2, rowY + 4, rw2, 11, 3, StaffList.alphaMul(StaffList.rankColor(rank2), rowAlpha));
+                    ServerConfigException.drawText(this.mc.textRenderer, rank2, rx2 + 3, rowY + 5, StaffList.alphaMul(-1, rowAlpha), false);
                 }
             }
             int nameColor = vanished ? -10395295 : (pinned ? 0xFF000000 | accentRGB : -1);
-            class_3322.method_51433(this.mc.field_1772, this.clip(animEntry.entry.name(), nameAvail), nameX, midY - 4, StaffList.alphaMul(nameColor, rowAlpha), pinned);
-            class_3322.method_51448().popMatrix();
+            ServerConfigException.drawText(this.mc.textRenderer, this.clip(animEntry.entry.name(), nameAvail), nameX, midY - 4, StaffList.alphaMul(nameColor, rowAlpha), pinned);
+            ServerConfigException.getMatrices().popMatrix();
             rowY += rh;
         }
-        class_3322.method_51448().popMatrix();
+        ServerConfigException.getMatrices().popMatrix();
     }
 
-    private static void drawSignalBars(class_332 ctx, int x, int y, int ms, int alpha) {
+    private static void drawSignalBars(DrawContext ctx, int x, int y, int ms, int alpha) {
         int quality = ms < 60 ? 4 : (ms < 120 ? 3 : (ms < 200 ? 2 : 1));
         int colGood = -12345273;
         int colOk = -19712;
@@ -382,7 +382,7 @@ extends Module {
             int bx = x + i * 4;
             int by = y + (9 - bh);
             int col = i < quality ? StaffList.alphaMul(barCol, alpha) : StaffList.alphaMul(-12961222, alpha);
-            ctx.method_25294(bx, by, bx + 2, by + bh, col);
+            ctx.fill(bx, by, bx + 2, by + bh, col);
         }
     }
 
@@ -401,9 +401,9 @@ extends Module {
 
     private void handleDrag(int pw, int ph) {
         boolean over;
-        long window = this.mc.method_22683().method_4490();
-        double mx = this.mc.field_1729.method_1603() * (double)this.mc.method_22683().method_4486() / (double)this.mc.method_22683().method_4480();
-        double my = this.mc.field_1729.method_1604() * (double)this.mc.method_22683().method_4502() / (double)this.mc.method_22683().method_4507();
+        long window = this.mc.getWindow().getHandle();
+        double mx = this.mc.mouse.getX() * (double)this.mc.getWindow().getScaledWidth() / (double)this.mc.getWindow().getWidth();
+        double my = this.mc.mouse.getY() * (double)this.mc.getWindow().getScaledHeight() / (double)this.mc.getWindow().getHeight();
         boolean mouseDown = GLFW.glfwGetMouseButton((long)window, (int)0) == 1;
         boolean bl = over = mx >= (double)this.panelX && mx <= (double)(this.panelX + pw) && my >= (double)this.panelY && my <= (double)(this.panelY + ph);
         if (mouseDown && !this.lastMouseDown && over) {
@@ -460,24 +460,24 @@ extends Module {
         return 1.0f - (1.0f - t) * (1.0f - t);
     }
 
-    private static void fillR(class_332 ctx, int x, int y, int w, int h, int r, int color) {
+    private static void fillR(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) {
             return;
         }
         if ((r = Math.min(r, Math.min(w, h) / 2)) <= 0) {
-            ctx.method_25294(x, y, x + w, y + h, color);
+            ctx.fill(x, y, x + w, y + h, color);
             return;
         }
-        ctx.method_25294(x + r, y, x + w - r, y + h, color);
-        ctx.method_25294(x, y + r, x + r, y + h - r, color);
-        ctx.method_25294(x + w - r, y + r, x + w, y + h - r, color);
+        ctx.fill(x + r, y, x + w - r, y + h, color);
+        ctx.fill(x, y + r, x + r, y + h - r, color);
+        ctx.fill(x + w - r, y + r, x + w, y + h - r, color);
         for (int i = 0; i < r; ++i) {
             double d = Math.sqrt(Math.max(0.0, (double)(r * r) - (double)((r - 1 - i) * (r - 1 - i))));
             int in = r - (int)d;
-            ctx.method_25294(x + in, y + i, x + r, y + i + 1, color);
-            ctx.method_25294(x + w - r, y + i, x + w - in, y + i + 1, color);
-            ctx.method_25294(x + in, y + h - i - 1, x + r, y + h - i, color);
-            ctx.method_25294(x + w - r, y + h - i - 1, x + w - in, y + h - i, color);
+            ctx.fill(x + in, y + i, x + r, y + i + 1, color);
+            ctx.fill(x + w - r, y + i, x + w - in, y + i + 1, color);
+            ctx.fill(x + in, y + h - i - 1, x + r, y + h - i, color);
+            ctx.fill(x + w - r, y + h - i - 1, x + w - in, y + h - i, color);
         }
     }
 
@@ -485,13 +485,13 @@ extends Module {
         if (text == null || text.isEmpty()) {
             return "";
         }
-        if (this.mc.field_1772.method_1727(text) <= maxPx) {
+        if (this.mc.textRenderer.getWidth(text) <= maxPx) {
             return text;
         }
-        int dw = this.mc.field_1772.method_1727("...");
+        int dw = this.mc.textRenderer.getWidth("...");
         StringBuilder sb = new StringBuilder();
         for (char c : text.toCharArray()) {
-            if (this.mc.field_1772.method_1727(String.valueOf(sb) + String.valueOf(c)) > maxPx - dw) break;
+            if (this.mc.textRenderer.getWidth(String.valueOf(sb) + String.valueOf(c)) > maxPx - dw) break;
             sb.append(c);
         }
         return String.valueOf(sb) + "...";

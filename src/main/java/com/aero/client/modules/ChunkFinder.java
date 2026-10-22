@@ -6,32 +6,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1297;
-import net.minecraft.class_1456;
-import net.minecraft.class_1542;
-import net.minecraft.class_1657;
-import net.minecraft.class_1923;
-import net.minecraft.class_2246;
-import net.minecraft.class_2248;
-import net.minecraft.class_2338;
-import net.minecraft.class_2350;
-import net.minecraft.class_2586;
-import net.minecraft.class_2595;
-import net.minecraft.class_2614;
-import net.minecraft.class_2818;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.passive.PolarBearEntity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.Block;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.ChestBlockEntity;
+import net.minecraft.block.entity.HopperBlockEntity;
+import net.minecraft.world.chunk.WorldChunk;
 public class ChunkFinder
 extends Module {
     private final SettingGroup sg;
@@ -54,9 +53,9 @@ extends Module {
     public final Setting<Boolean> detAirPocket;
     public final Setting<Boolean> detStair;
     public final Setting<Boolean> detPolarBear;
-    public final Map<class_1923, FlaggedChunk> flagged;
-    public final Set<class_1923> scanned;
-    public final List<class_1923> queue;
+    public final Map<ChunkPos, FlaggedChunk> flagged;
+    public final Set<ChunkPos> scanned;
+    public final List<ChunkPos> queue;
     public int queueCursor;
     public int tickCounter;
 
@@ -82,9 +81,9 @@ extends Module {
         this.detAirPocket = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("air-pocket")).defaultValue(true)).build());
         this.detStair = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("synthetic-stair")).defaultValue(true)).build());
         this.detPolarBear = this.sg.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("polar-bear")).defaultValue(true)).build());
-        this.flagged = new ConcurrentHashMap<class_1923, FlaggedChunk>();
+        this.flagged = new ConcurrentHashMap<ChunkPos, FlaggedChunk>();
         this.scanned = ConcurrentHashMap.newKeySet();
-        this.queue = new ArrayList<class_1923>();
+        this.queue = new ArrayList<ChunkPos>();
         this.queueCursor = 0;
         this.tickCounter = 0;
     }
@@ -107,46 +106,46 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         if (++this.tickCounter >= 200 || this.queue.isEmpty()) {
             this.tickCounter = 0;
             this.queue.clear();
             this.queueCursor = 0;
-            class_1923 center = this.mc.field_1724.method_31476();
+            ChunkPos center = this.mc.player.getChunkPos();
             int radius = (Integer)this.scanRadius.get();
-            for (int cx = center.field_9181 - radius; cx <= center.field_9181 + radius; ++cx) {
-                for (int cz = center.field_9180 - radius; cz <= center.field_9180 + radius; ++cz) {
-                    class_1923 c = new class_1923(cx, cz);
+            for (int cx = center.x - radius; cx <= center.x + radius; ++cx) {
+                for (int cz = center.z - radius; cz <= center.z + radius; ++cz) {
+                    ChunkPos c = new ChunkPos(cx, cz);
                     if (this.scanned.contains(c)) continue;
                     this.queue.add(c);
                 }
             }
             int keep = radius + 3;
-            this.scanned.removeIf(p -> Math.abs(p.field_9181 - center.field_9181) > keep || Math.abs(p.field_9180 - center.field_9180) > keep);
-            this.flagged.keySet().removeIf(p -> Math.abs(p.field_9181 - center.field_9181) > keep || Math.abs(p.field_9180 - center.field_9180) > keep);
+            this.scanned.removeIf(p -> Math.abs(p.x - center.x) > keep || Math.abs(p.z - center.z) > keep);
+            this.flagged.keySet().removeIf(p -> Math.abs(p.x - center.x) > keep || Math.abs(p.z - center.z) > keep);
         }
         int budget = (Integer)this.chunksPerTick.get();
         while (budget-- > 0 && this.queueCursor < this.queue.size()) {
-            class_2818 chunk;
-            class_1923 pos;
-            if (!this.scanned.add(pos = this.queue.get(this.queueCursor++)) || (chunk = this.mc.field_1687.method_8497(pos.field_9181, pos.field_9180)) == null || chunk.method_12223()) continue;
+            WorldChunk chunk;
+            ChunkPos pos;
+            if (!this.scanned.add(pos = this.queue.get(this.queueCursor++)) || (chunk = this.mc.world.getChunk(pos.x, pos.z)) == null || chunk.isEmpty()) continue;
             this.analyzeChunk(chunk, pos);
         }
     }
 
-    public void analyzeChunk(class_2818 chunk, class_1923 pos) {
+    public void analyzeChunk(WorldChunk chunk, ChunkPos pos) {
         int z;
         int x;
-        if (this.mc.field_1687 == null) {
+        if (this.mc.world == null) {
             return;
         }
-        int originX = pos.method_8326();
-        int originZ = pos.method_8328();
-        int minY = this.mc.field_1687.method_31607();
-        int maxY = minY + this.mc.field_1687.method_31605();
-        class_2338.class_2339 cursor = new class_2338.class_2339();
+        int originX = pos.getStartX();
+        int originZ = pos.getStartZ();
+        int minY = this.mc.world.getBottomY();
+        int maxY = minY + this.mc.world.getHeight();
+        BlockPos.Mutable cursor = new BlockPos.Mutable();
         int cobble = 0;
         int cobbleLines = 0;
         int deepslate = 0;
@@ -170,15 +169,15 @@ extends Module {
                 int airRun = 0;
                 int longestAir = 0;
                 for (int y = minY; y <= maxY; ++y) {
-                    class_2248 block;
-                    cursor.method_10103(wx, y, wz);
+                    Block block;
+                    cursor.set(wx, y, wz);
                     try {
-                        block = chunk.method_8320((class_2338)cursor).method_26204();
+                        block = chunk.getBlockState((BlockPos)cursor).getBlock();
                     }
                     catch (Exception e) {
                         continue;
                     }
-                    if (block == class_2246.field_10124 || block == class_2246.field_10543) {
+                    if (block == Blocks.AIR || block == Blocks.CAVE_AIR) {
                         if (++airRun > longestAir) {
                             longestAir = airRun;
                         }
@@ -188,24 +187,24 @@ extends Module {
                         }
                         airRun = 0;
                     }
-                    if (y < 0 && (block == class_2246.field_10445 || block == class_2246.field_29031 || block == class_2246.field_9989)) {
+                    if (y < 0 && (block == Blocks.COBBLESTONE || block == Blocks.COBBLED_DEEPSLATE || block == Blocks.MOSSY_COBBLESTONE)) {
                         ++cobble;
-                        cursor.method_10103(wx + 1, y, wz);
-                        if (this.mc.field_1687.method_8320((class_2338)cursor).method_26204() == block) {
+                        cursor.set(wx + 1, y, wz);
+                        if (this.mc.world.getBlockState((BlockPos)cursor).getBlock() == block) {
                             ++cobbleLines;
                         }
-                        cursor.method_10103(wx, y, wz);
+                        cursor.set(wx, y, wz);
                     }
-                    if (y < 0 && (block == class_2246.field_28892 || block == class_2246.field_28900 || block == class_2246.field_28896 || block == class_2246.field_28904)) {
+                    if (y < 0 && (block == Blocks.POLISHED_DEEPSLATE || block == Blocks.DEEPSLATE_BRICKS || block == Blocks.DEEPSLATE_TILES || block == Blocks.CHISELED_DEEPSLATE)) {
                         ++deepslate;
                     }
-                    if (y < 20 && block == class_2246.field_10540) {
+                    if (y < 20 && block == Blocks.OBSIDIAN) {
                         ++obsidian;
                     }
                     if (y < 20 && ChunkFinder.isPiston(block)) {
                         ++pistons;
                     }
-                    if (y < 0 && (block == class_2246.field_28048 || block == class_2246.field_28049)) {
+                    if (y < 0 && (block == Blocks.POINTED_DRIPSTONE || block == Blocks.DRIPSTONE_BLOCK)) {
                         ++dripstone;
                     }
                     if (y < 0 && ChunkFinder.isStairBlock(block)) {
@@ -223,16 +222,16 @@ extends Module {
                     int[] nArray = oreColumns[x];
                     int n = z;
                     nArray[n] = nArray[n] + 1;
-                    if (block == class_2246.field_10442 || block == class_2246.field_29029) {
+                    if (block == Blocks.DIAMOND_ORE || block == Blocks.DEEPSLATE_DIAMOND_ORE) {
                         ++diamond;
                     }
-                    if (block == class_2246.field_10212 || block == class_2246.field_29027) {
+                    if (block == Blocks.IRON_ORE || block == Blocks.DEEPSLATE_IRON_ORE) {
                         ++iron;
                     }
-                    if (block == class_2246.field_10571 || block == class_2246.field_29026) {
+                    if (block == Blocks.GOLD_ORE || block == Blocks.DEEPSLATE_GOLD_ORE) {
                         ++gold;
                     }
-                    if (block == class_2246.field_22109) {
+                    if (block == Blocks.ANCIENT_DEBRIS) {
                         ++debris;
                     }
                     if (!this.isHiddenOre(cursor, wx, y, wz)) continue;
@@ -244,9 +243,9 @@ extends Module {
             for (z = 0; z < 16; ++z) {
                 int airRun = 0;
                 for (int y = minY; y < 0; ++y) {
-                    cursor.method_10103(originX + x, y, originZ + z);
-                    class_2248 b = chunk.method_8320((class_2338)cursor).method_26204();
-                    if (b == class_2246.field_10124 || b == class_2246.field_10543) {
+                    cursor.set(originX + x, y, originZ + z);
+                    Block b = chunk.getBlockState((BlockPos)cursor).getBlock();
+                    if (b == Blocks.AIR || b == Blocks.CAVE_AIR) {
                         ++airRun;
                         continue;
                     }
@@ -267,23 +266,23 @@ extends Module {
         int droppedItems = 0;
         int polarBears = 0;
         int mobs = 0;
-        for (class_1297 entity : this.mc.field_1687.method_18112()) {
-            if (!new class_1923(entity.method_24515()).equals((Object)pos)) continue;
-            if (entity instanceof class_1542 && entity.method_23318() < 0.0) {
+        for (Entity entity : this.mc.world.getEntities()) {
+            if (!new ChunkPos(entity.getBlockPos()).equals((Object)pos)) continue;
+            if (entity instanceof ItemEntity && entity.getY() < 0.0) {
                 ++droppedItems;
             }
-            if (entity instanceof class_1456) {
+            if (entity instanceof PolarBearEntity) {
                 polarBears += 3;
             }
-            if (entity instanceof class_1657) continue;
+            if (entity instanceof PlayerEntity) continue;
             ++mobs;
         }
         if (mobs > 20) {
             mobCluster = mobs / 5;
         }
         int storage = 0;
-        for (class_2586 be : chunk.method_12214().values()) {
-            if (!(be instanceof class_2595) && !(be instanceof class_2614)) continue;
+        for (BlockEntity be : chunk.getBlockEntities().values()) {
+            if (!(be instanceof ChestBlockEntity) && !(be instanceof HopperBlockEntity)) continue;
             ++storage;
         }
         int score = 0;
@@ -353,18 +352,18 @@ extends Module {
         }
         String label = "Base? S:" + score + " [" + String.join((CharSequence)", ", tags) + "]";
         this.flagged.put(pos, new FlaggedChunk(pos, label));
-        this.info("Flagged " + pos.field_9181 + "," + pos.field_9180 + " | " + label, new Object[0]);
+        this.info("Flagged " + pos.x + "," + pos.z + " | " + label, new Object[0]);
     }
 
-    public boolean isHiddenOre(class_2338.class_2339 cursor, int x, int y, int z) {
-        if (this.mc.field_1687 == null) {
+    public boolean isHiddenOre(BlockPos.Mutable cursor, int x, int y, int z) {
+        if (this.mc.world == null) {
             return false;
         }
         int enclosed = 0;
-        for (class_2350 dir : class_2350.values()) {
-            cursor.method_10103(x + dir.method_10148(), y + dir.method_10164(), z + dir.method_10165());
-            class_2248 nb = this.mc.field_1687.method_8320((class_2338)cursor).method_26204();
-            if (nb != class_2246.field_10445 && nb != class_2246.field_29031 && nb != class_2246.field_10340 && nb != class_2246.field_28888 && nb != class_2246.field_10540 && nb != class_2246.field_10515) continue;
+        for (Direction dir : Direction.values()) {
+            cursor.set(x + dir.getOffsetX(), y + dir.getOffsetY(), z + dir.getOffsetZ());
+            Block nb = this.mc.world.getBlockState((BlockPos)cursor).getBlock();
+            if (nb != Blocks.COBBLESTONE && nb != Blocks.COBBLED_DEEPSLATE && nb != Blocks.STONE && nb != Blocks.DEEPSLATE && nb != Blocks.OBSIDIAN && nb != Blocks.NETHERRACK) continue;
             ++enclosed;
         }
         return enclosed >= 5;
@@ -372,33 +371,33 @@ extends Module {
 
     @EventHandler
     private void onRender3D(Render3DEvent event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null || this.flagged.isEmpty()) {
+        if (this.mc.world == null || this.mc.player == null || this.flagged.isEmpty()) {
             return;
         }
-        class_1923 center = this.mc.field_1724.method_31476();
+        ChunkPos center = this.mc.player.getChunkPos();
         int radius = (Integer)this.scanRadius.get() + 1;
         for (FlaggedChunk fc : this.flagged.values()) {
-            class_1923 cp = fc.pos();
-            if (Math.abs(cp.field_9181 - center.field_9181) > radius || Math.abs(cp.field_9180 - center.field_9180) > radius) continue;
-            double x1 = cp.method_8326();
-            double z1 = cp.method_8328();
+            ChunkPos cp = fc.pos();
+            if (Math.abs(cp.x - center.x) > radius || Math.abs(cp.z - center.z) > radius) continue;
+            double x1 = cp.getStartX();
+            double z1 = cp.getStartZ();
             event.renderer.box(x1, 63.0, z1, x1 + 16.0, 63.15, z1 + 16.0, (Color)this.fillColor.get(), (Color)this.lineColor.get(), ShapeMode.Both, 0);
         }
     }
 
-    public static boolean isOre(class_2248 b) {
-        return b == class_2246.field_10442 || b == class_2246.field_29029 || b == class_2246.field_10212 || b == class_2246.field_29027 || b == class_2246.field_10571 || b == class_2246.field_29026 || b == class_2246.field_10013 || b == class_2246.field_29220 || b == class_2246.field_10090 || b == class_2246.field_29028 || b == class_2246.field_10080 || b == class_2246.field_29030 || b == class_2246.field_10418 || b == class_2246.field_29219 || b == class_2246.field_27120 || b == class_2246.field_29221 || b == class_2246.field_22109;
+    public static boolean isOre(Block b) {
+        return b == Blocks.DIAMOND_ORE || b == Blocks.DEEPSLATE_DIAMOND_ORE || b == Blocks.IRON_ORE || b == Blocks.DEEPSLATE_IRON_ORE || b == Blocks.GOLD_ORE || b == Blocks.DEEPSLATE_GOLD_ORE || b == Blocks.EMERALD_ORE || b == Blocks.DEEPSLATE_EMERALD_ORE || b == Blocks.LAPIS_ORE || b == Blocks.DEEPSLATE_LAPIS_ORE || b == Blocks.REDSTONE_ORE || b == Blocks.DEEPSLATE_REDSTONE_ORE || b == Blocks.COAL_ORE || b == Blocks.DEEPSLATE_COAL_ORE || b == Blocks.COPPER_ORE || b == Blocks.DEEPSLATE_COPPER_ORE || b == Blocks.ANCIENT_DEBRIS;
     }
 
-    public static boolean isStairBlock(class_2248 b) {
-        return b == class_2246.field_10440 || b == class_2246.field_10596 || b == class_2246.field_28901 || b == class_2246.field_28893 || b == class_2246.field_10563 || b == class_2246.field_10569 || b == class_2246.field_10616 || b == class_2246.field_28889;
+    public static boolean isStairBlock(Block b) {
+        return b == Blocks.STONE_STAIRS || b == Blocks.COBBLESTONE_STAIRS || b == Blocks.DEEPSLATE_BRICK_STAIRS || b == Blocks.POLISHED_DEEPSLATE_STAIRS || b == Blocks.OAK_STAIRS || b == Blocks.SPRUCE_STAIRS || b == Blocks.DARK_OAK_STAIRS || b == Blocks.COBBLED_DEEPSLATE_STAIRS;
     }
 
-    public static boolean isPiston(class_2248 b) {
-        return b == class_2246.field_10560 || b == class_2246.field_10615 || b == class_2246.field_10008 || b == class_2246.field_10379;
+    public static boolean isPiston(Block b) {
+        return b == Blocks.PISTON || b == Blocks.STICKY_PISTON || b == Blocks.MOVING_PISTON || b == Blocks.PISTON_HEAD;
     }
 
-    public record FlaggedChunk(class_1923 pos, String label) {
+    public record FlaggedChunk(ChunkPos pos, String label) {
     }
 }
 

@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.aero.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "FreecamCameraMixin",
+    "InGameHudMixin",
+    "WorldRendererAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

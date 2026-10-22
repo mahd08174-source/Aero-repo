@@ -7,10 +7,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
-import net.minecraft.class_2561;
-import net.minecraft.class_2583;
-import net.minecraft.class_5251;
-
+import net.minecraft.text.Text;
+import net.minecraft.text.Style;
+import net.minecraft.text.TextColor;
 public final class StaffDetector {
     public static final String MODE_STAR_RANK = "Star + Rank";
     public static final String MODE_STAR = "Star Only";
@@ -24,7 +23,7 @@ public final class StaffDetector {
     private StaffDetector() {
     }
 
-    public static StaffEntry classify(String name, class_2561 display, class_2561 teamPrefix, class_2561 teamSuffix, String teamName, boolean vanished, int latency, DetectConfig cfg) {
+    public static StaffEntry classify(String name, Text display, Text teamPrefix, Text teamSuffix, String teamName, boolean vanished, int latency, DetectConfig cfg) {
         if (MODE_NAMES.equals(cfg.mode())) {
             if (!cfg.names().isEmpty() && cfg.names().contains(name.toLowerCase(Locale.ROOT))) {
                 return new StaffEntry(name, "", 0, vanished, latency, 0, null);
@@ -58,21 +57,21 @@ public final class StaffDetector {
         return new StaffEntry(name, rank != null ? rank.label() : "", markerColor != null ? markerColor : 0, vanished, latency, rank != null ? rank.priority() : 0, null);
     }
 
-    static Integer scanMarker(class_2561 text, DetectConfig cfg) {
+    static Integer scanMarker(Text text, DetectConfig cfg) {
         int cp;
         if (text == null) {
             return null;
         }
-        Optional styled = text.method_27658((style, str) -> {
+        Optional styled = text.visit((style, str) -> {
             int code;
             for (int i = 0; i < str.length(); i += Character.charCount(code)) {
                 code = str.codePointAt(i);
                 if (!StaffDetector.isMarker(code, cfg)) continue;
-                class_5251 tc = style.method_10973();
-                return Optional.of(tc != null ? 0xFF000000 | tc.method_27716() : 0);
+                TextColor tc = style.getColor();
+                return Optional.of(tc != null ? 0xFF000000 | tc.getRgb() : 0);
             }
             return Optional.empty();
-        }, class_2583.field_24360);
+        }, Style.EMPTY);
         if (styled.isPresent()) {
             return (Integer)styled.get();
         }
@@ -119,7 +118,7 @@ public final class StaffDetector {
         return Character.toUpperCase(keyword.charAt(0)) + keyword.substring(1);
     }
 
-    private static String plain(class_2561 text) {
+    private static String plain(Text text) {
         return text == null ? "" : text.getString();
     }
 

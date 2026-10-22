@@ -4,16 +4,15 @@ import com.aero.client.AeroCategory;
 import com.mojang.authlib.GameProfile;
 import java.util.HashSet;
 import java.util.Set;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.settings.StringSetting;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2561;
-import net.minecraft.class_640;
-
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.StringSetting;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.text.Text;
+import net.minecraft.client.network.PlayerListEntry;
 public class StaffDetector
 extends Module {
     private final SettingGroup sgGeneral;
@@ -33,10 +32,10 @@ extends Module {
 
     public void onActivate() {
         this.knownStaff.clear();
-        if (this.mc.method_1562() == null) {
+        if (this.mc.getNetworkHandler() == null) {
             return;
         }
-        for (class_640 entry : this.mc.method_1562().method_2880()) {
+        for (PlayerListEntry entry : this.mc.getNetworkHandler().getPlayerList()) {
             String name = this.getProfileName(entry);
             if (!this.isStaff(name)) continue;
             this.knownStaff.add(name);
@@ -49,14 +48,14 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (this.mc.field_1724 == null || this.mc.method_1562() == null) {
+        if (this.mc.player == null || this.mc.getNetworkHandler() == null) {
             return;
         }
         HashSet<String> current = new HashSet<String>();
-        for (class_640 entry : this.mc.method_1562().method_2880()) {
+        for (PlayerListEntry entry : this.mc.getNetworkHandler().getPlayerList()) {
             String display;
             String name = this.getProfileName(entry);
-            String string = display = entry.method_2971() != null ? entry.method_2971().getString() : name;
+            String string = display = entry.getDisplayName() != null ? entry.getDisplayName().getString() : name;
             if (!this.isStaff(name) && !this.isStaff(display)) continue;
             current.add(name);
         }
@@ -94,13 +93,13 @@ extends Module {
     }
 
     private void alert(String msg) {
-        if (this.mc.field_1724 != null) {
-            this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a78[\u00a7bStaffDetector\u00a78] \u00a7r" + msg)), false);
+        if (this.mc.player != null) {
+            this.mc.player.sendMessage((Text)Text.literal((String)("\u00a78[\u00a7bStaffDetector\u00a78] \u00a7r" + msg)), false);
         }
     }
 
-    private String getProfileName(class_640 entry) {
-        GameProfile profile = entry.method_2966();
+    private String getProfileName(PlayerListEntry entry) {
+        GameProfile profile = entry.getProfile();
         try {
             return (String)profile.getClass().getMethod("getName", new Class[0]).invoke((Object)profile, new Object[0]);
         }

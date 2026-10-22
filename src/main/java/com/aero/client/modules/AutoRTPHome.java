@@ -1,13 +1,13 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.EnumSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.EnumSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
 
 public class AutoRTPHome
 extends Module {
@@ -51,7 +51,7 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (this.mc.field_1724 == null || this.mc.field_1687 == null) {
+        if (this.mc.player == null || this.mc.world == null) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -63,7 +63,7 @@ extends Module {
             return;
         }
         if (this.step == 0) {
-            double y = this.mc.field_1724.method_23318();
+            double y = this.mc.player.getY();
             if (y > (double)((Integer)this.triggerY.get()).intValue()) {
                 this.wasAboveTrigger = true;
             }
@@ -78,7 +78,7 @@ extends Module {
         if (now < this.fireAt) {
             return;
         }
-        if (this.mc.field_1724.field_3944 == null) {
+        if (this.mc.player.networkHandler == null) {
             return;
         }
         int slot = ((DelHomeSlot)((Object)this.delHomeSlot.get())).ordinal() + 1;
@@ -116,14 +116,14 @@ extends Module {
     }
 
     private void send(String command) {
-        if (this.mc.field_1724 != null && this.mc.field_1724.field_3944 != null) {
-            this.mc.field_1724.field_3944.method_45730(command);
+        if (this.mc.player != null && this.mc.player.networkHandler != null) {
+            this.mc.player.networkHandler.sendChatCommand(command);
         }
     }
 
     private void sendChat(String message) {
-        if (this.mc.field_1724 != null && this.mc.field_1724.field_3944 != null) {
-            this.mc.field_1724.field_3944.method_45729(message);
+        if (this.mc.player != null && this.mc.player.networkHandler != null) {
+            this.mc.player.networkHandler.sendChatMessage(message);
         }
     }
 

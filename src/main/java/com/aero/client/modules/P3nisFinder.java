@@ -3,26 +3,25 @@ package com.aero.client.modules;
 import com.aero.client.AeroCategory;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import meteordevelopment.meteorclient.events.render.Render3DEvent;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.renderer.ShapeMode;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.ColorSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.meteorclient.utils.render.color.SettingColor;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_1923;
-import net.minecraft.class_243;
-import net.minecraft.class_2561;
-import net.minecraft.class_2818;
-import net.minecraft.class_370;
-import net.minecraft.class_374;
-
+import com.aero.client.api.Render3DEvent;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.ShapeMode;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.ColorSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.SettingColor;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.text.Text;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.client.toast.SystemToast;
+import net.minecraft.client.toast.ToastManager;
 public class P3nisFinder
 extends Module {
     private final SettingGroup sgGeneral;
@@ -43,7 +42,7 @@ extends Module {
     private final Setting<SettingColor> denseChunkFillColor;
     private final Setting<Boolean> showDenseChunkTracers;
     private final Setting<SettingColor> denseChunkTracerColor;
-    private final Map<class_1923, Double> denseChunks;
+    private final Map<ChunkPos, Double> denseChunks;
     private int tickCounter;
 
     public P3nisFinder() {
@@ -66,7 +65,7 @@ extends Module {
         this.denseChunkFillColor = this.sgChunkDensity.add((Setting)((ColorSetting.Builder)((ColorSetting.Builder)new ColorSetting.Builder().name("dense-chunk-fill-color")).description("Fill color for dense chunk markers.")).defaultValue(new SettingColor(255, 0, 0, 50)).build());
         this.showDenseChunkTracers = this.sgTracers.add((Setting)((BoolSetting.Builder)((BoolSetting.Builder)((BoolSetting.Builder)new BoolSetting.Builder().name("show-dense-chunk-tracers")).description("Draw tracer lines to saved dense chunk detections.")).defaultValue(false)).build());
         this.denseChunkTracerColor = this.sgTracers.add((Setting)((ColorSetting.Builder)((ColorSetting.Builder)new ColorSetting.Builder().name("dense-chunk-tracer-color")).description("Tracer color for dense chunk detections.")).defaultValue(new SettingColor(255, 0, 0, 200)).build());
-        this.denseChunks = new LinkedHashMap<class_1923, Double>();
+        this.denseChunks = new LinkedHashMap<ChunkPos, Double>();
         this.tickCounter = 0;
     }
 
@@ -80,22 +79,22 @@ extends Module {
     }
 
     private void sendChat(String msg) {
-        if (this.mc.field_1724 == null) {
+        if (this.mc.player == null) {
             return;
         }
-        this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a75[P3nis Finder] \u00a7f" + msg)), false);
+        this.mc.player.sendMessage((Text)Text.literal((String)("\u00a75[P3nis Finder] \u00a7f" + msg)), false);
     }
 
     private void sendToast(String desc) {
-        if (this.mc.method_1566() == null) {
+        if (this.mc.getToastManager() == null) {
             return;
         }
-        class_370.method_27024((class_374)this.mc.method_1566(), (class_370.class_9037)class_370.class_9037.field_47588, (class_2561)class_2561.method_43470((String)"P3nis Finder"), (class_2561)class_2561.method_43470((String)desc));
+        SystemToast.add((ToastManager)this.mc.getToastManager(), (SystemToast.Type)SystemToast.Type.PERIODIC_NOTIFICATION, (Text)Text.literal((String)"P3nis Finder"), (Text)Text.literal((String)desc));
     }
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         if (++this.tickCounter < (Integer)this.scanIntervalTicks.get()) {
@@ -103,19 +102,19 @@ extends Module {
         }
         this.tickCounter = 0;
         int range = (int)((Double)this.scanRange.get() / 16.0);
-        class_1923 playerChunk = this.mc.field_1724.method_31476();
+        ChunkPos playerChunk = this.mc.player.getChunkPos();
         for (int dx = -range; dx <= range; ++dx) {
             for (int dz = -range; dz <= range; ++dz) {
                 int count;
-                class_2818 chunk;
-                class_1923 cp = new class_1923(playerChunk.field_9181 + dx, playerChunk.field_9180 + dz);
-                if (this.denseChunks.containsKey(cp) || (chunk = this.mc.field_1687.method_8497(cp.field_9181, cp.field_9180)) == null || (count = chunk.method_12214().size()) < (Integer)this.denseChunkThreshold.get()) continue;
+                WorldChunk chunk;
+                ChunkPos cp = new ChunkPos(playerChunk.x + dx, playerChunk.z + dz);
+                if (this.denseChunks.containsKey(cp) || (chunk = this.mc.world.getChunk(cp.x, cp.z)) == null || (count = chunk.getBlockEntities().size()) < (Integer)this.denseChunkThreshold.get()) continue;
                 if (this.denseChunks.size() >= (Integer)this.maxSavedDenseChunks.get()) {
                     this.denseChunks.remove(this.denseChunks.keySet().iterator().next());
                 }
-                double fixedY = this.mc.field_1724.method_23318() + (Double)this.markerHeightOffset.get();
+                double fixedY = this.mc.player.getY() + (Double)this.markerHeightOffset.get();
                 this.denseChunks.put(cp, fixedY);
-                String msg = "Dense chunk at " + cp.field_9181 + ", " + cp.field_9180 + " | " + count + " block entities";
+                String msg = "Dense chunk at " + cp.x + ", " + cp.z + " | " + count + " block entities";
                 if (((Boolean)this.denseChunkChatNotify.get()).booleanValue()) {
                     this.sendChat(msg);
                 }
@@ -127,28 +126,28 @@ extends Module {
 
     @EventHandler
     private void onRender3D(Render3DEvent event) {
-        if (this.mc.field_1687 == null || this.mc.field_1724 == null) {
+        if (this.mc.world == null || this.mc.player == null) {
             return;
         }
         if (!((Boolean)this.renderDenseChunkMarkers.get()).booleanValue() && !((Boolean)this.showDenseChunkTracers.get()).booleanValue()) {
             return;
         }
-        class_243 cam = this.mc.field_1724.method_5836(1.0f);
+        Vec3d cam = this.mc.player.getCameraPosVec(1.0f);
         int rendered = 0;
-        for (Map.Entry<class_1923, Double> entry : this.denseChunks.entrySet()) {
+        for (Map.Entry<ChunkPos, Double> entry : this.denseChunks.entrySet()) {
             if (rendered++ >= (Integer)this.maxDenseChunkMarkers.get()) break;
-            class_1923 cp = entry.getKey();
+            ChunkPos cp = entry.getKey();
             double y = entry.getValue();
             double s = (Double)this.denseChunkMarkerSize.get();
-            double x1 = (double)(cp.field_9181 * 16 + 8) - s / 2.0;
-            double z1 = (double)(cp.field_9180 * 16 + 8) - s / 2.0;
+            double x1 = (double)(cp.x * 16 + 8) - s / 2.0;
+            double z1 = (double)(cp.z * 16 + 8) - s / 2.0;
             double cx = x1 + s / 2.0;
             double cz = z1 + s / 2.0;
             if (((Boolean)this.renderDenseChunkMarkers.get()).booleanValue()) {
                 event.renderer.box(x1, y, z1, x1 + s, y + (Double)this.denseChunkMarkerThickness.get(), z1 + s, (Color)this.denseChunkFillColor.get(), (Color)this.denseChunkLineColor.get(), ShapeMode.Both, 0);
             }
             if (!((Boolean)this.showDenseChunkTracers.get()).booleanValue()) continue;
-            event.renderer.line(cam.field_1352, cam.field_1351, cam.field_1350, cx, y, cz, (Color)this.denseChunkTracerColor.get());
+            event.renderer.line(cam.x, cam.y, cam.z, cx, y, cz, (Color)this.denseChunkTracerColor.get());
         }
     }
 }

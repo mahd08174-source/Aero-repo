@@ -1,12 +1,12 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
 
 public class RenderDistanceBypass
 extends Module {
@@ -48,10 +48,10 @@ extends Module {
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         boolean belowTrigger;
-        if (this.mc.field_1724 == null || this.mc.field_1690 == null) {
+        if (this.mc.player == null || this.mc.options == null) {
             return;
         }
-        double y = this.mc.field_1724.method_23318();
+        double y = this.mc.player.getY();
         boolean bl = belowTrigger = y < (double)((Integer)this.triggerY.get()).intValue();
         if (belowTrigger) {
             this.ticksAbove = 0;
@@ -64,16 +64,16 @@ extends Module {
         if (this.waiting) {
             ++this.ticksLeft;
             if (this.ticksLeft >= (Integer)this.restoreDelay.get()) {
-                this.mc.field_1690.method_42503().method_41748(((Integer)this.restoreDistance.get()));
-                this.mc.field_1690.method_1643();
+                this.mc.options.getViewDistance().setValue(((Integer)this.restoreDistance.get()));
+                this.mc.options.sendClientSettings();
                 this.waiting = false;
             }
             return;
         }
         if (belowTrigger && !this.triggered) {
             this.triggered = true;
-            this.mc.field_1690.method_42503().method_41748(((Integer)this.tempDistance.get()));
-            this.mc.field_1690.method_1643();
+            this.mc.options.getViewDistance().setValue(((Integer)this.tempDistance.get()));
+            this.mc.options.sendClientSettings();
             this.ticksLeft = 0;
             this.waiting = true;
         }

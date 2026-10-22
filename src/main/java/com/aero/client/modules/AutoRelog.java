@@ -1,16 +1,15 @@
 package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
-import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2561;
-
+import com.aero.client.api.TickEvent;
+import com.aero.client.api.BoolSetting;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.EventHandler;
+import net.minecraft.text.Text;
 public class AutoRelog
 extends Module {
     private final SettingGroup sgGeneral;
@@ -41,7 +40,7 @@ extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (this.mc.field_1724 == null || this.mc.field_1687 == null) {
+        if (this.mc.player == null || this.mc.world == null) {
             return;
         }
         if (this.inGrace) {
@@ -51,7 +50,7 @@ extends Module {
             }
             return;
         }
-        double y = this.mc.field_1724.method_23318();
+        double y = this.mc.player.getY();
         if (y < (Double)this.voidLevel.get() + 5.0 && !this.hasWarned) {
             this.hasWarned = true;
             this.chat("\u00a7eApproaching void! Y: " + String.format("%.1f", y));
@@ -59,15 +58,15 @@ extends Module {
         if (y < (Double)this.voidLevel.get()) {
             this.chat("\u00a7cVoid at Y" + String.format("%.1f", y) + " \u2014 kicking...");
             this.hasWarned = false;
-            if (this.mc.method_1562() != null && this.mc.method_1562().method_48296() != null) {
-                this.mc.method_1562().method_48296().method_10747((class_2561)class_2561.method_43470((String)"[AutoRelog] Void"));
+            if (this.mc.getNetworkHandler() != null && this.mc.getNetworkHandler().getConnection() != null) {
+                this.mc.getNetworkHandler().getConnection().disconnect((Text)Text.literal((String)"[AutoRelog] Void"));
             }
         }
     }
 
     private void chat(String msg) {
-        if (((Boolean)this.logToChat.get()).booleanValue() && this.mc.field_1724 != null) {
-            this.mc.field_1724.method_7353((class_2561)class_2561.method_43470((String)("\u00a7c[AutoRelog] \u00a7f" + msg)), false);
+        if (((Boolean)this.logToChat.get()).booleanValue() && this.mc.player != null) {
+            this.mc.player.sendMessage((Text)Text.literal((String)("\u00a7c[AutoRelog] \u00a7f" + msg)), false);
         }
     }
 }

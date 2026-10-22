@@ -2,25 +2,22 @@ package com.aero.client.modules;
 
 import com.aero.client.AeroCategory;
 import java.lang.reflect.Method;
-import meteordevelopment.meteorclient.events.render.Render2DEvent;
-import meteordevelopment.meteorclient.renderer.text.TextRenderer;
-import meteordevelopment.meteorclient.settings.DoubleSetting;
-import meteordevelopment.meteorclient.settings.IntSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
-import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.render.NametagUtils;
-import meteordevelopment.meteorclient.utils.render.color.Color;
-import meteordevelopment.orbit.EventHandler;
-import net.minecraft.class_2338;
-import net.minecraft.class_2382;
-import net.minecraft.class_2487;
-import net.minecraft.class_2520;
-import net.minecraft.class_2586;
-import net.minecraft.class_2636;
-import net.minecraft.class_2818;
-import net.minecraft.class_7225;
-import org.joml.Vector3d;
+import com.aero.client.api.Render2DEvent;
+import com.aero.client.api.DoubleSetting;
+import com.aero.client.api.IntSetting;
+import com.aero.client.api.Setting;
+import com.aero.client.api.SettingGroup;
+import com.aero.client.api.Module;
+import com.aero.client.api.Color;
+import com.aero.client.api.EventHandler;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.MobSpawnerBlockEntity;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.registry.RegistryWrapper;
 
 public class SpawnerTags
 extends Module {
@@ -40,50 +37,49 @@ extends Module {
 
     @EventHandler
     private void onRender2D(Render2DEvent event) {
-        if (this.mc.field_1724 == null || this.mc.field_1687 == null) {
+        if (this.mc.player == null || this.mc.world == null) {
             return;
         }
         int r = (Integer)this.range.get();
-        class_2338 playerPos = this.mc.field_1724.method_24515();
+        BlockPos playerPos = this.mc.player.getBlockPos();
         int chunkR = (r >> 4) + 1;
-        int cx = playerPos.method_10263() >> 4;
-        int cz = playerPos.method_10260() >> 4;
-        Vector3d pos = new Vector3d();
+        int cx = playerPos.getX() >> 4;
+        int cz = playerPos.getZ() >> 4;
         for (int dx = -chunkR; dx <= chunkR; ++dx) {
             for (int dz = -chunkR; dz <= chunkR; ++dz) {
-                class_2818 chunk = this.mc.field_1687.method_2935().method_21730(cx + dx, cz + dz);
+                WorldChunk chunk = this.mc.world.getChunkManager().getWorldChunk(cx + dx, cz + dz);
                 if (chunk == null) continue;
-                for (class_2586 be : chunk.method_12214().values()) {
-                    if (!(be instanceof class_2636)) continue;
-                    class_2636 spawner = (class_2636)be;
-                    class_2338 bp = be.method_11016();
-                    if (playerPos.method_10262((class_2382)bp) > (double)((long)r * (long)r)) continue;
+                for (BlockEntity be : chunk.getBlockEntities().values()) {
+                    if (!(be instanceof MobSpawnerBlockEntity)) continue;
+                    MobSpawnerBlockEntity spawner = (MobSpawnerBlockEntity)be;
+                    BlockPos bp = be.getPos();
+                    if (playerPos.getSquaredDistance((Vec3i)bp) > (double)((long)r * (long)r)) continue;
                     String mobName = this.getMobName(spawner);
                     String label = "Spawner: " + mobName;
-                    pos.set((double)bp.method_10263() + 0.5, (double)bp.method_10264() + (Double)this.yOffset.get(), (double)bp.method_10260() + 0.5);
-                    if (!NametagUtils.to2D((Vector3d)pos, (double)1.0)) continue;
-                    double scale = (Double)this.textScale.get();
-                    TextRenderer tr = TextRenderer.get();
-                    NametagUtils.begin((Vector3d)pos);
-                    tr.begin(scale, false, true);
-                    double w = tr.getWidth(label);
-                    tr.render(label, (double)((float)(-w / 2.0)), 0.0, ORANGE, true);
-                    tr.end();
-                    NametagUtils.end();
+                    double[] sp = com.aero.client.Projection.toScreen((double)bp.getX() + 0.5, (double)bp.getY() + (Double)this.yOffset.get(), (double)bp.getZ() + 0.5);
+                    if (sp == null) continue;
+                    float scale = (float)(((Double)this.textScale.get()).doubleValue() * 0.5);
+                    var ctx = event.drawContext;
+                    int w = this.mc.textRenderer.getWidth(label);
+                    ctx.getMatrices().pushMatrix();
+                    ctx.getMatrices().translate((float)sp[0], (float)sp[1]);
+                    ctx.getMatrices().scale(scale, scale);
+                    ctx.drawText(this.mc.textRenderer, label, -w / 2, 0, ORANGE.getPacked(), true);
+                    ctx.getMatrices().popMatrix();
                 }
             }
         }
     }
 
-    private String getMobName(class_2636 spawner) {
+    private String getMobName(MobSpawnerBlockEntity spawner) {
         try {
-            class_2487 ent;
-            class_2520 id;
-            class_2487 sd;
-            class_2520 entity;
-            class_2487 nbt = spawner.method_16887((class_7225.class_7874)this.mc.field_1687.method_30349());
-            class_2520 spawnData = nbt.method_10580("SpawnData");
-            if (spawnData instanceof class_2487 && (entity = (sd = (class_2487)spawnData).method_10580("entity")) instanceof class_2487 && (id = (ent = (class_2487)entity).method_10580("id")) != null) {
+            NbtCompound ent;
+            NbtElement id;
+            NbtCompound sd;
+            NbtElement entity;
+            NbtCompound nbt = spawner.toInitialChunkDataNbt((RegistryWrapper.WrapperLookup)this.mc.world.getRegistryManager());
+            NbtElement spawnData = nbt.get("SpawnData");
+            if (spawnData instanceof NbtCompound && (entity = (sd = (NbtCompound)spawnData).get("entity")) instanceof NbtCompound && (id = (ent = (NbtCompound)entity).get("id")) != null) {
                 String idStr = id.toString().replace("\"", "");
                 return idStr.contains(":") ? this.capitalize(idStr.split(":")[1]) : this.capitalize(idStr);
             }
@@ -101,12 +97,12 @@ extends Module {
             }
             if (entry != null) {
                 for (Method m : entry.getClass().getMethods()) {
-                    class_2487 nc;
-                    class_2520 id;
+                    NbtCompound nc;
+                    NbtElement id;
                     Object nbt;
                     if (m.getParameterCount() > 1 || !m.getReturnType().getSimpleName().contains("Nbt")) continue;
                     Object object = nbt = m.getParameterCount() == 0 ? m.invoke(entry, new Object[0]) : null;
-                    if (!(nbt instanceof class_2487) || (id = (nc = (class_2487)nbt).method_10580("id")) == null) continue;
+                    if (!(nbt instanceof NbtCompound) || (id = (nc = (NbtCompound)nbt).get("id")) == null) continue;
                     String idStr = id.toString().replace("\"", "");
                     return idStr.contains(":") ? this.capitalize(idStr.split(":")[1]) : this.capitalize(idStr);
                 }
